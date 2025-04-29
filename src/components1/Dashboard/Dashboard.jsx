@@ -46,7 +46,12 @@ const Dashboard = () => {
             <div className="container">
               <h2>Unlock Your Potential</h2>
               <p>Opportunities knock for those who are ready to open the door. Keep learning, keep growing.</p>
-              <button className="btn-primary">Explore Opportunities</button>
+              <button 
+  className="btn-primary" 
+  onClick={() => window.location.href='https://lms-job.onrender.com'}
+>
+  Explore Opportunities
+</button>
               <div className="opportunity-cards">
                 <div className="opportunity-card">
                   <h3>Internships</h3>
