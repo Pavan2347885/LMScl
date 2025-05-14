@@ -10,7 +10,8 @@ import { Profile } from '@/components/Profile';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
-// import OffCampusJobs from '@/components/OffCampusJobs';
+
+import {OffCampusJobs} from '@/components/offcampusjobs';
 
 
 const Index = () => {
@@ -58,8 +59,8 @@ const Index = () => {
         return <Assignments />;
       case 'jobs':
         return <Jobs />;
-      // case 'offcampusjobs':
-      //   return <OffCampusJobs />;
+      case 'offcampusjobs':
+        return <OffCampusJobs />;
       case 'interview':
         return <Interview />;
       case 'profile':

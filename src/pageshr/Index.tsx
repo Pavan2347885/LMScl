@@ -14,6 +14,8 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 
+
+
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const navigate = useNavigate();
@@ -59,6 +61,9 @@ const Index = () => {
         return <Courses />;
       case 'tests':
         return <Tests />;
+      
+    
+       
       
       case 'jobs':
         return <Jobs />;

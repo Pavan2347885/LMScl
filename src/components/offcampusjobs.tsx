@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/select'; // Update as per your actual Se
 
 const JOBS_PER_PAGE = 6;
 
-const OffCampusJobs = () => {
+  export const OffCampusJobs = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -159,4 +159,4 @@ const OffCampusJobs = () => {
   );
 };
 
-export default OffCampusJobs;
+
