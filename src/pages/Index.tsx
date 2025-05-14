@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { Sidebar } from '@/components/Sidebar';
+import { Navbar } from '@/components/Sidebar';
 import { Dashboard } from '@/components/Dashboard';
 import { Courses } from '@/components/Courses';
 import { Tests } from '@/components/Tests';
@@ -11,6 +10,7 @@ import { Profile } from '@/components/Profile';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import OffCampusJobs from '@/components/OffCampusJobs';
 
 
 const Index = () => {
@@ -18,42 +18,38 @@ const Index = () => {
   const navigate = useNavigate();
   const [token, setToken] = useState(localStorage.getItem("authToken"));
 
-const handleLogout = () => {
+  const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.clear(); 
     sessionStorage.clear();
     setToken(null); 
     window.location.replace("/");
-    // navigate('/');
-};
+  };
 
-const location = useLocation();
-console.log(location.state);
+  const location = useLocation();
+  console.log(location.state);
 
-useEffect(() => {
-  const savedSection = sessionStorage.getItem("activeSection");
-  if (savedSection) {
-    setActiveSection(savedSection);
-  }
-}, []);
+  useEffect(() => {
+    const savedSection = sessionStorage.getItem("activeSection");
+    if (savedSection) {
+      setActiveSection(savedSection);
+    }
+  }, []);
 
-// 💾 Persist to sessionStorage
-useEffect(() => {
-  sessionStorage.setItem("activeSection", activeSection);
-}, [activeSection]);
+  useEffect(() => {
+    sessionStorage.setItem("activeSection", activeSection);
+  }, [activeSection]);
 
-// 📦 Restore from location state (on back navigation)
-useEffect(() => {
-  if (location.state?.section) {
-    setActiveSection(location.state.section);
-  }
-}, [location.state]);
+  useEffect(() => {
+    if (location.state?.section) {
+      setActiveSection(location.state.section);
+    }
+  }, [location.state]);
 
-  // Function to render the active section
   const renderSection = () => {
     switch (activeSection) {
-      case 'dashboard':
-        return <Dashboard />;
+      // case 'dashboard':
+      //   return <Dashboard />;
       case 'courses':
         return <Courses />;
       case 'tests':
@@ -62,23 +58,27 @@ useEffect(() => {
         return <Assignments />;
       case 'jobs':
         return <Jobs />;
-     
+      case 'offcampusjobs':
+        return <OffCampusJobs />;
+      case 'interview':
+        return <Interview />;
       case 'profile':
         return <Profile />;
+      case 'manage-profile':
+        return <Profile />;
       case 'logout':
-        
         handleLogout();
         return null;
       default:
-        return <Dashboard />;
+        return<Courses />;
     }
   };
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen flex bg-background">
-        <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-        <main className={`flex-1 ml-16 md:ml-64 transition-all duration-300 min-h-screen`}>
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar activeSection={activeSection} onSectionChange={setActiveSection} />
+        <main className="flex-1 pt-16 min-h-screen">
           {renderSection()}
         </main>
       </div>

@@ -19,6 +19,11 @@ const LoginSignup = ({ isSignup, setToken }) => {
   });
   const [rememberMe, setRememberMe] = useState(false);
   const MAX_PASSWORD_LENGTH = 12;
+  const [showHelp, setShowHelp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const toggleHelp = () => setShowHelp(!showHelp);
+
 
   // Check for saved username on component mount
   useEffect(() => {
@@ -88,11 +93,11 @@ const handlePasswordInput = (e) => {
     e.preventDefault();
     const username = e.target.loginUsername.value;
     const password = e.target.loginPassword.value;
+    setIsLoading(true);
 
     try {
       const data = await loginAdmin(username, password);
-      console.log("API Response:", data);
-      console.log("API Response:", data.token);
+     
 
       if (!data || !data.token) {
         throw new Error("Invalid response: Token is missing.");
@@ -111,14 +116,13 @@ const handlePasswordInput = (e) => {
       toast.success("Login successful!");
       navigate("/admin");
     } catch (error) {
-      if (error?.message) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(error || "An error occurred");
-      }
-      setTimeout(() => {
-        setErrorMessage("");
-      }, 5000);
+      toast.error(error || "An error occurred");
+      setIsLoading(false);
+              setErrorMessage(error || "An error occurred");
+            
+            setTimeout(() => {
+              setErrorMessage("");
+            }, 5000);
     }
   };
 
@@ -242,17 +246,21 @@ const handlePasswordInput = (e) => {
               />
               <label htmlFor="rememberMe">Remember me</label>
             </div>
-            
-            <button type="submit" className="login-button">
+            {isLoading ? (
+          <div className="loading-spinner " ></div>
+        ) : (
+          <button type="submit" className="login-button">
               Continue
             </button>
+        )}
             
-            <p className="login-toggle-text">
+            
+            {/* <p className="login-toggle-text">
               Don't have an account?{" "}
               <a href="#" onClick={toggleForm}>
                 Sign up
               </a>
-            </p>
+            </p> */}
             <div className="login-social-buttons">
               <p className="login-social-text">or</p>
               <a href={`${API_BASE_URL}/oauth/login/google-oauth2/`} className="login-social-button">
@@ -279,7 +287,8 @@ const handlePasswordInput = (e) => {
           </form>
         ) : (
           <form id="signupForm" onSubmit={handleSignupSubmit}>
-            <h3 className="login-title">Sign Up As Admin</h3>
+            <h3 className="login-title">Admin is not Authenticate to SignUp</h3>
+            {/* <h3 className="login-title">Sign Up As Admin</h3>
             <div className="login-input-group">
               <label htmlFor="signupUsername" className="login-label">
                 Username
@@ -357,14 +366,26 @@ const handlePasswordInput = (e) => {
             </div>
             <button type="submit" className="login-button">
               Continue
-            </button>
+            </button> */}
             <p className="login-toggle-text">
-              Already have an account?{" "}
+        Need help?{" "}
+        <a className="login-toggle-text" href="#" onClick={toggleHelp}>
+          Get Help
+        </a>
+      </p>
+      {showHelp && (
+        <div className="login-toggle-text">
+          <p>📞 Phone: +91-9876543210</p>
+          <p>📧 Email: support.lms.techmiya@example.com</p>
+        </div>
+      )}
+            <p className="login-toggle-text">
+              Please Login?{" "}
               <a href="#" onClick={toggleForm}>
                 Login
               </a>
             </p>
-            <div className="login-social-buttons">
+            {/* <div className="login-social-buttons">
               <p className="login-social-text">or</p>
               <a href={`${API_BASE_URL}/oauth/login/google-oauth2/`} className="login-social-button">
                 <svg fill="none" height="15" viewBox="0 0 16 16" width="15" xmlns="http://www.w3.org/2000/svg">
@@ -384,7 +405,7 @@ const handlePasswordInput = (e) => {
               >
                 <FontAwesomeIcon icon={faGithub} /> Continue with GitHub
               </a>
-            </div>
+            </div> */}
           </form>
         )}
         <Link to="/" className="login-back-link">

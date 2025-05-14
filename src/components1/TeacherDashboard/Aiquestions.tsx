@@ -7,6 +7,7 @@ import { fetchSkills } from "../../services/api.tsx";
 import { generatequestionpaper } from '../../services/api.tsx';
 import { storeAssessment } from '../../services/api.tsx';
 import PreviewModal from './PreviewModal.tsx';
+import './Ai.css';
 
 interface AquestionsProps {
   fetchAssessments: () => Promise<void>;
@@ -349,22 +350,7 @@ const [previewData, setPreviewData] = useState(null);
     
 
     return (
-        <div className="ai-generator-container" style={{
-            position: 'relative',
-            top: '300px',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '80%',
-            maxWidth: '900px',
-            maxHeight: '80vh',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-            zIndex: 1000,
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
+        <div className="ai-generator-container" >
             <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -377,13 +363,7 @@ const [previewData, setPreviewData] = useState(null);
                     <FaRobot className="logo-icon" />
                     <span>AI Assessment Generator</span>
                 </div>
-                <button onClick={onClose} style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'white',
-                    fontSize: '1.5rem',
-                    cursor: 'pointer'
-                }}>×</button>
+                
             </div>
 
             <div style={{

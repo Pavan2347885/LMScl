@@ -1,342 +1,1029 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { generateResumePDF } from '././services/resumeGenerator';
 
-import React from 'react';
 import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  Briefcase, 
-  GraduationCap,
-  Book,
-  Award,
-  BarChart,
-  FileText
+  User, Mail, Phone, MapPin, Calendar, Briefcase, GraduationCap,
+  Book, Award, BarChart, FileText, Plus, Trash, Edit, Download, Upload
 } from 'lucide-react';
 import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle 
 } from "@/components/ui/card";
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/use-toast";
+import { fetchUserProfile, updateProfileAPI } from '@/services/api';
+import { uploadResume, downloadResume,deleteResume } from '@/services/api';
 
-// Mock user data
-const userData = {
-  name: 'Naveen Kumar',
-  email: 'naveen.kumar@example.com',
-  phone: '+1 (555) 123-4567',
-  location: 'Bangalore, India',
-  role: 'Computer Science Student',
-  institution: 'Tech University',
-  joinDate: '2021-09-01',
-  bio: 'Passionate computer science student with interests in web development, algorithms, and artificial intelligence. Looking to build a career in software engineering.',
-  avatar: 'N'
-};
-
-// Skills data
-const skills = [
-  { name: 'JavaScript', level: 'Advanced' },
-  { name: 'React', level: 'Intermediate' },
-  { name: 'Node.js', level: 'Intermediate' },
-  { name: 'Python', level: 'Advanced' },
-  { name: 'SQL', level: 'Intermediate' },
-  { name: 'Data Structures', level: 'Advanced' },
-  { name: 'Algorithms', level: 'Intermediate' },
-  { name: 'Machine Learning', level: 'Beginner' }
-];
-
-// Education data
-const education = [
-  {
-    degree: 'B.Tech in Computer Science',
-    institution: 'Tech University',
-    duration: '2021 - 2025',
-    description: 'Specializing in Artificial Intelligence and Machine Learning',
-    gpa: '3.8/4.0'
-  },
-  {
-    degree: 'Higher Secondary',
-    institution: 'City Public School',
-    duration: '2019 - 2021',
-    description: 'Science stream with Computer Science',
-    gpa: '92%'
-  }
-];
-
-// Achievements data
-const achievements = [
-  {
-    title: 'Dean\'s List',
-    date: '2022',
-    description: 'Recognized for academic excellence for two consecutive semesters'
-  },
-  {
-    title: 'Hackathon Winner',
-    date: '2023',
-    description: 'First place in university hackathon for developing an AI-powered study assistant'
-  },
-  {
-    title: 'Coding Competition Finalist',
-    date: '2022',
-    description: 'Reached finals in national level coding competition'
-  }
-];
-
-// Enrolled courses summary
-const enrolledCoursesSummary = [
-  { name: 'Advanced Web Development', progress: 75 },
-  { name: 'Data Structures & Algorithms', progress: 45 },
-  { name: 'Machine Learning Fundamentals', progress: 90 },
-  { name: 'Database Design & Management', progress: 60 },
-  { name: 'Mobile App Development', progress: 30 }
+// Resume templates
+const resumeTemplates = [
+  { id: 1, name: 'Professional', preview: '/templates/professional.jpg' },
+  { id: 2, name: 'Modern', preview: '/templates/modern.jpg' },
+  { id: 3, name: 'Creative', preview: '/templates/creative.jpg' },
+  { id: 4, name: 'Minimalist', preview: '/templates/minimalist.jpg' }
 ];
 
 export const Profile: React.FC = () => {
+  const { toast } = useToast();
+  const [userData, setUserData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    mobile: '',
+    location: '',
+    title: '',
+    profile_picture: '',
+    skills: [],
+    experiences: [],
+    projects: [],
+    education: {
+      '10th': { board: '', school: '', percentage: '', passout_year: '' },
+      '12th': { board: '', school: '', percentage: '', passout_year: '' },
+      graduation: { college: '', branch: '', percentage: '', passout_year: '' }
+    },
+    resume: null
+  });
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingSkills, setIsEditingSkills] = useState(false);
+  const [newSkill, setNewSkill] = useState('');
+  const [skillLevel, setSkillLevel] = useState('Beginner');
+  const [selectedTemplate, setSelectedTemplate] = useState(1);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Refs for scroll navigation
+  const skillsRef = useRef<HTMLDivElement>(null);
+  const projectsRef = useRef<HTMLDivElement>(null);
+  const educationRef = useRef<HTMLDivElement>(null);
+  const experiencesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const data = await fetchUserProfile();
+        setUserData(data);
+        calculateProfileCompletion(data);
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
+      }
+    };
+    loadProfile();
+  }, []);
+
+  const calculateProfileCompletion = (data) => {
+    let completedFields = 0;
+    const totalFields = 15; // Adjust based on your important fields
+    
+    // Basic info
+    if (data.first_name) completedFields++;
+    if (data.last_name) completedFields++;
+    if (data.email) completedFields++;
+    if (data.mobile) completedFields++;
+    if (data.location) completedFields++;
+    if (data.profile_picture) completedFields++;
+    
+    // Education
+    if (data.education['10th'].school) completedFields++;
+    if (data.education['12th'].school) completedFields++;
+    if (data.education.graduation.college) completedFields++;
+    
+    // Skills
+    if (data.skills.length > 0) completedFields++;
+    
+    // Experiences
+    if (data.experiences.length > 0) completedFields++;
+    
+    // Projects
+    if (data.projects.length > 0) completedFields++;
+    
+    // Resume
+    if (data.resume) completedFields++;
+    
+    setProfileCompletion(Math.round((completedFields / totalFields) * 100));
+  };
+
+  const handleAddSkill = () => {
+    if (newSkill.trim()) {
+      const updatedSkills = [...userData.skills, { name: newSkill, level: skillLevel }];
+      setUserData({
+        ...userData,
+        skills: updatedSkills
+      });
+      setNewSkill('');
+      calculateProfileCompletion({
+        ...userData,
+        skills: updatedSkills
+      });
+    }
+  };
+  const handleDownloadResume = async () => {
+    try {
+      toast({
+        title: "Preparing Resume",
+        description: "Your download will start shortly...",
+      });
+  
+      const { url, filename } = await downloadResume();
+      
+      // Create temporary link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+  
+      toast({
+        title: "Download Started",
+        description: `Your resume (${filename}) is downloading`,
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      
+      toast({
+        title: "Download Failed",
+        description: error.message,
+        variant: "destructive",
+        action: (
+          <Button 
+            variant="ghost" 
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </Button>
+        ),
+      });
+    }
+  };
+  const handleDeleteSkill = (index) => {
+    const updatedSkills = [...userData.skills];
+    updatedSkills.splice(index, 1);
+    setUserData({ ...userData, skills: updatedSkills });
+    calculateProfileCompletion({ ...userData, skills: updatedSkills });
+  };
+
+  const handleEducationChange = (level, field, value) => {
+    const updatedEducation = {
+      ...userData.education,
+      [level]: {
+        ...userData.education[level],
+        [field]: value
+      }
+    };
+    setUserData({
+      ...userData,
+      education: updatedEducation
+    });
+    calculateProfileCompletion({
+      ...userData,
+      education: updatedEducation
+    });
+  };
+
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const updatedData = {
+          ...userData,
+          profile_picture: event.target.result
+        };
+        setUserData(updatedData);
+        calculateProfileCompletion(updatedData);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast({
+        title: "Authentication Error",
+        description: "Please login again",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    try {
+      const result = await uploadResume(file);
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Resume uploaded successfully",
+        });
+        setUserData(prev => ({
+          ...prev,
+          resume: {
+            name: result.filename || file.name,
+            url: URL.createObjectURL(file), // Create a temporary URL for display
+            uploadedAt: new Date().toISOString()
+          }
+        }));
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleAddProject = () => {
+    setUserData({
+      ...userData,
+      projects: [...userData.projects, {
+        title: '',
+        description: '',
+        link: '',
+        start_date: '',
+        end_date: '',
+        currently_ongoing: false
+      }]
+    });
+  };
+
+  const handleProjectChange = (index, field, value) => {
+    const updatedProjects = [...userData.projects];
+    updatedProjects[index] = {
+      ...updatedProjects[index],
+      [field]: value
+    };
+    setUserData({
+      ...userData,
+      projects: updatedProjects
+    });
+    calculateProfileCompletion({
+      ...userData,
+      projects: updatedProjects
+    });
+  };
+
+  const handleDeleteProject = (index) => {
+    const updatedProjects = [...userData.projects];
+    updatedProjects.splice(index, 1);
+    setUserData({ ...userData, projects: updatedProjects });
+    calculateProfileCompletion({ ...userData, projects: updatedProjects });
+  };
+
+  const handleAddExperience = () => {
+    setUserData({
+      ...userData,
+      experiences: [...userData.experiences, {
+        company_name: '',
+        job_title: '',
+        start_date: '',
+        end_date: '',
+        currently_working: false,
+        description: ''
+      }]
+    });
+  };
+
+  const handleExperienceChange = (index, field, value) => {
+    const updatedExperiences = [...userData.experiences];
+    updatedExperiences[index] = {
+      ...updatedExperiences[index],
+      [field]: value
+    };
+    setUserData({
+      ...userData,
+      experiences: updatedExperiences
+    });
+    calculateProfileCompletion({
+      ...userData,
+      experiences: updatedExperiences
+    });
+  };
+
+  const handleDeleteExperience = (index) => {
+    const updatedExperiences = [...userData.experiences];
+    updatedExperiences.splice(index, 1);
+    setUserData({ ...userData, experiences: updatedExperiences });
+    calculateProfileCompletion({ ...userData, experiences: updatedExperiences });
+  };
+
+ // Update the generateResume function in your Profile component
+ const generateResume = async () => {
+  try {
+    // Show loading state
+    toast({
+      title: "Generating Resume",
+      description: "Please wait while we prepare your resume...",
+    });
+
+    // Generate the PDF
+    const pdfBlob = await generateResumePDF(selectedTemplate, userData);
+    
+    // Create download link
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${userData.first_name}_${userData.last_name}_Resume.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Success notification
+    toast({
+      title: "Resume Downloaded",
+      description: `Your ${resumeTemplates.find(t => t.id === selectedTemplate)?.name} resume has been downloaded!`,
+    });
+  } catch (error) {
+    console.error('Error generating resume:', error);
+    toast({
+      title: "Error",
+      description: "Failed to generate resume. Please try again.",
+      variant: "destructive",
+    });
+  }
+};
+
+  const saveProfile = async () => {
+    setIsSaving(true);
+    try {
+      await updateProfileAPI(userData);
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+      setIsEditing(false);
+      setIsEditingSkills(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const scrollToSection = (ref) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="page-container">
+    <div className="container mx-auto px-4 py-8">
+      {/* Main Layout */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Profile sidebar */}
+        {/* Left Side - Profile Card */}
         <div className="lg:w-1/3">
-          <Card className="glass-card h-full">
-            <CardHeader className="text-center pb-0">
-              <div className="w-24 h-24 rounded-full bg-primary mx-auto flex items-center justify-center mb-4">
-                <span className="text-4xl font-bold text-primary-foreground">{userData.avatar}</span>
+          <Card className="sticky top-4">
+            <CardHeader className="text-center">
+              <div className="relative mx-auto mb-4">
+                <Avatar className="w-24 h-24">
+                  <AvatarImage src={userData.profile_picture} />
+                  <AvatarFallback>
+                    {userData.first_name.charAt(0)}{userData.last_name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <label htmlFor="profile-picture" className="absolute bottom-0 right-0 bg-primary rounded-full p-2 cursor-pointer">
+                  <Edit className="h-4 w-4 text-white" />
+                  <input 
+                    id="profile-picture" 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                  />
+                </label>
               </div>
-              <CardTitle className="text-2xl">{userData.name}</CardTitle>
-              <div className="mt-1">
-                <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                  {userData.role}
-                </Badge>
-              </div>
-              <CardDescription className="mt-3">{userData.bio}</CardDescription>
+              <CardTitle>
+                <Input 
+                  value={userData.first_name}
+                  onChange={(e) => setUserData({...userData, first_name: e.target.value})}
+                  placeholder="First Name"
+                  className="text-center text-2xl font-bold border-none focus-visible:ring-0"
+                />
+                <Input 
+                  value={userData.last_name}
+                  onChange={(e) => setUserData({...userData, last_name: e.target.value})}
+                  placeholder="Last Name"
+                  className="text-center text-2xl font-bold border-none focus-visible:ring-0 mt-2"
+                />
+              </CardTitle>
+              <CardDescription>
+                <Input 
+                  value={userData.title}
+                  onChange={(e) => setUserData({...userData, title: e.target.value})}
+                  placeholder="Your professional title"
+                  className="text-center border-none focus-visible:ring-0"
+                />
+              </CardDescription>
             </CardHeader>
-            
-            <CardContent className="mt-6 space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center text-sm">
-                  <Mail size={18} className="mr-2 text-muted-foreground" />
-                  <span>{userData.email}</span>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Profile Completion</span>
+                  <span className="text-sm font-medium">{profileCompletion}%</span>
                 </div>
-                <div className="flex items-center text-sm">
-                  <Phone size={18} className="mr-2 text-muted-foreground" />
-                  <span>{userData.phone}</span>
+                <Progress value={profileCompletion} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="font-medium">Quick Access</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => scrollToSection(skillsRef)}
+                  >
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Skills
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => scrollToSection(projectsRef)}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    Projects
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => scrollToSection(experiencesRef)}
+                  >
+                    <Award className="mr-2 h-4 w-4" />
+                    Experience
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => scrollToSection(educationRef)}
+                  >
+                    <GraduationCap className="mr-2 h-4 w-4" />
+                    Education
+                  </Button>
                 </div>
-                <div className="flex items-center text-sm">
-                  <MapPin size={18} className="mr-2 text-muted-foreground" />
-                  <span>{userData.location}</span>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="font-medium">Contact Info</h3>
+                <div className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    value={userData.email}
+                    onChange={(e) => setUserData({...userData, email: e.target.value})}
+                    placeholder="Email"
+                    type="email"
+                  />
                 </div>
-                <div className="flex items-center text-sm">
-                  <GraduationCap size={18} className="mr-2 text-muted-foreground" />
-                  <span>{userData.institution}</span>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    value={userData.mobile}
+                    onChange={(e) => setUserData({...userData, mobile: e.target.value})}
+                    placeholder="Phone"
+                    type="tel"
+                  />
                 </div>
-                <div className="flex items-center text-sm">
-                  <Calendar size={18} className="mr-2 text-muted-foreground" />
-                  <span>Joined {new Date(userData.joinDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    value={userData.location}
+                    onChange={(e) => setUserData({...userData, location: e.target.value})}
+                    placeholder="Location"
+                  />
                 </div>
+              </div>
+              <div className="space-y-2">
+  <h3 className="font-medium">Resume</h3>
+  {userData.resume ? (
+  <div className="flex items-center justify-between p-3 border rounded-lg">
+    <div className="flex items-center gap-2">
+      <FileText className="h-5 w-5 text-muted-foreground" />
+      <span className="text-sm truncate">{userData.resume.name}</span>
+    </div>
+    <div className="flex gap-2">
+      {/* <Button 
+        variant="ghost" 
+        size="sm"
+        onClick={async () => {
+          try {
+            const response = await downloadResume();
+            if (response.success) {
+              const a = document.createElement('a');
+              a.href = response.url;
+              a.download = response.filename || 'resume.pdf';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              // Revoke the object URL after download
+              setTimeout(() => URL.revokeObjectURL(response.url), 100);
+            } else {
+              throw new Error(response.error);
+            }
+          } catch (error) {
+            toast({
+              title: "Download Failed",
+              description: error.message,
+              variant: "destructive",
+            });
+          }
+        }}
+      >
+        <Download className="h-4 w-4" />
+      </Button> */}
+      <Button 
+        variant="ghost" 
+        size="sm"
+        onClick={async () => {
+          try {
+            // Call API to delete resume
+            await deleteResume();
+            setUserData(prev => ({...prev, resume: null}));
+            toast({
+              title: "Success",
+              description: "Resume deleted successfully",
+            });
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "Failed to delete resume",
+              variant: "destructive",
+            });
+          }
+        }}
+      >
+        <Trash className="h-4 w-4 text-destructive" />
+      </Button>
+    </div>
+  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full border-2 border-dashed rounded-lg p-6 cursor-pointer hover:bg-accent/50 transition-colors">
+                  <Upload className="h-8 w-8 mb-2 text-muted-foreground" />
+                  <span className="text-sm font-medium">Upload Resume</span>
+                  <span className="text-xs text-muted-foreground mt-1">PDF, DOC, or DOCX (Max 5MB)</span>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleResumeUpload}
+                  />
+                </label>
+                )}
+
+                <Select 
+                  value={selectedTemplate.toString()} 
+                  onValueChange={(value) => setSelectedTemplate(Number(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {resumeTemplates.map(template => (
+                      <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button className="w-full" onClick={generateResume}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Generate & Download
+                </Button>
               </div>
             </CardContent>
-            
-            <CardFooter>
-              <Button variant="outline" className="w-full">Edit Profile</Button>
+            <CardFooter className="flex justify-end">
+              <Button onClick={saveProfile} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Profile"}
+              </Button>
             </CardFooter>
           </Card>
         </div>
-        
-        {/* Profile content */}
-        <div className="lg:w-2/3">
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="mb-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="courses">Courses</TabsTrigger>
-              <TabsTrigger value="education">Education</TabsTrigger>
-              <TabsTrigger value="achievements">Achievements</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="overview" className="animate-slide-in">
-              <div className="space-y-6">
-                {/* Skills section */}
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-xl">
-                      <Briefcase size={20} className="mr-2" />
-                      Skills
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
+
+        {/* Right Side - Main Content */}
+        <div className="lg:w-2/3 space-y-6">
+          {/* Skills Section */}
+          <div ref={skillsRef}>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center">
+                    <Briefcase className="mr-2 h-5 w-5" />
+                    Skills
+                  </CardTitle>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setIsEditingSkills(!isEditingSkills)}
+                    variant={isEditingSkills ? "default" : "outline"}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    {isEditingSkills ? 'Done' : 'Edit'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isEditingSkills ? (
+                  <div className="space-y-4">
+                    <div className="flex gap-2 flex-col md:flex-row">
+                      <Input 
+                        placeholder="New skill" 
+                        value={newSkill}
+                        onChange={(e) => setNewSkill(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Select value={skillLevel} onValueChange={setSkillLevel}>
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue placeholder="Level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Beginner">Beginner</SelectItem>
+                            <SelectItem value="Intermediate">Intermediate</SelectItem>
+                            <SelectItem value="Advanced">Advanced</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button onClick={handleAddSkill}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add
+                        </Button>
+                      </div>
+                    </div>
                     <div className="flex flex-wrap gap-2">
-                      {skills.map((skill) => (
-                        <Badge key={skill.name} variant="outline" className="py-1.5">
+                      {userData.skills.map((skill, index) => (
+                        <Badge key={index} variant="outline" className="py-1.5">
                           {skill.name}
                           <span className="ml-2 text-xs opacity-70">{skill.level}</span>
+                          <button 
+                            onClick={() => handleDeleteSkill(index)}
+                            className="ml-2 text-red-500 hover:text-red-700"
+                          >
+                            <Trash className="h-3 w-3" />
+                          </button>
                         </Badge>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-                
-                {/* Analytics summary */}
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-xl">
-                      <BarChart size={20} className="mr-2" />
-                      Performance Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="text-center p-4 rounded-lg bg-secondary/50">
-                        <div className="text-3xl font-bold">85%</div>
-                        <div className="text-sm text-muted-foreground mt-1">Average Course Score</div>
-                      </div>
-                      <div className="text-center p-4 rounded-lg bg-secondary/50">
-                        <div className="text-3xl font-bold">12</div>
-                        <div className="text-sm text-muted-foreground mt-1">Tests Completed</div>
-                      </div>
-                      <div className="text-center p-4 rounded-lg bg-secondary/50">
-                        <div className="text-3xl font-bold">8</div>
-                        <div className="text-sm text-muted-foreground mt-1">Certifications</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                {/* Recent activities */}
-                <Card className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-xl">
-                      <FileText size={20} className="mr-2" />
-                      Recent Activities
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-4">
-                      <li className="flex items-start">
-                        <div className="mr-3 w-2 h-2 mt-2 rounded-full bg-primary shrink-0"></div>
-                        <div>
-                          <p className="font-medium">Completed Machine Learning Quiz #5</p>
-                          <p className="text-sm text-muted-foreground">Yesterday at 2:30 PM</p>
-                        </div>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="mr-3 w-2 h-2 mt-2 rounded-full bg-primary shrink-0"></div>
-                        <div>
-                          <p className="font-medium">Submitted Assignment: Database Normalization</p>
-                          <p className="text-sm text-muted-foreground">2 days ago</p>
-                        </div>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="mr-3 w-2 h-2 mt-2 rounded-full bg-primary shrink-0"></div>
-                        <div>
-                          <p className="font-medium">Enrolled in Mobile App Development course</p>
-                          <p className="text-sm text-muted-foreground">5 days ago</p>
-                        </div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="courses" className="animate-slide-in">
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-xl">
-                    <Book size={20} className="mr-2" />
-                    Enrolled Courses
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {userData.skills.length > 0 ? (
+                      userData.skills.map((skill, index) => (
+                        <Badge key={index} variant="outline" className="py-1.5">
+                          {skill.name}
+                          <span className="ml-2 text-xs opacity-70">{skill.level}</span>
+                        </Badge>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No skills added yet</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Projects Section */}
+          <div ref={projectsRef}>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center">
+                    <FileText className="mr-2 h-5 w-5" />
+                    Projects
                   </CardTitle>
-                  <CardDescription>Track your progress across all courses</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {enrolledCoursesSummary.map((course) => (
-                      <div key={course.name} className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-medium">{course.name}</h3>
-                          <span className="text-sm">{course.progress}% Complete</span>
-                        </div>
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-value" 
-                            style={{ width: `${course.progress}%` }}
+                  <Button size="sm" onClick={handleAddProject}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Project
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {userData.projects.length > 0 ? (
+                  userData.projects.map((project, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between">
+                        <Input
+                          value={project.title}
+                          onChange={(e) => handleProjectChange(index, 'title', e.target.value)}
+                          placeholder="Project Title"
+                          className="font-medium border-none focus-visible:ring-0 px-0"
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteProject(index)}
+                        >
+                          <Trash className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <Textarea
+                        value={project.description}
+                        onChange={(e) => handleProjectChange(index, 'description', e.target.value)}
+                        placeholder="Project description"
+                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Input
+                          value={project.link}
+                          onChange={(e) => handleProjectChange(index, 'link', e.target.value)}
+                          placeholder="Project URL"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={project.start_date}
+                            onChange={(e) => handleProjectChange(index, 'start_date', e.target.value)}
+                            placeholder="Start Date"
+                            type="date"
+                          />
+                          <Input
+                            value={project.end_date}
+                            onChange={(e) => handleProjectChange(index, 'end_date', e.target.value)}
+                            placeholder="End Date"
+                            type="date"
+                            disabled={project.currently_ongoing}
                           />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="outline" className="w-full">View All Courses</Button>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="education" className="animate-slide-in">
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-xl">
-                    <GraduationCap size={20} className="mr-2" />
-                    Education
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`ongoing-${index}`}
+                          checked={project.currently_ongoing}
+                          onChange={(e) => handleProjectChange(index, 'currently_ongoing', e.target.checked)}
+                        />
+                        <label htmlFor={`ongoing-${index}`} className="text-sm">
+                          Currently ongoing
+                        </label>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground">No projects added yet</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Experience Section */}
+          <div ref={experiencesRef}>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="flex items-center">
+                    <Award className="mr-2 h-5 w-5" />
+                    Work Experience
                   </CardTitle>
-                  <CardDescription>Academic background and qualifications</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-8">
-                    {education.map((edu, index) => (
-                      <div key={index} className="relative pl-6 pb-8 border-l border-border last:pb-0">
-                        <div className="absolute left-0 top-0 -translate-x-1/2 w-4 h-4 rounded-full bg-primary"></div>
-                        <h3 className="font-bold text-lg">{edu.degree}</h3>
-                        <div className="flex items-center mt-1 text-sm text-muted-foreground">
-                          <GraduationCap size={14} className="mr-1" />
-                          <span>{edu.institution}</span>
-                          <span className="mx-2">•</span>
-                          <span>{edu.duration}</span>
-                        </div>
-                        <p className="mt-2">{edu.description}</p>
-                        <div className="mt-1 text-sm">
-                          <span className="font-medium">GPA/Score:</span> {edu.gpa}
+                  <Button size="sm" onClick={handleAddExperience}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Experience
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {userData.experiences.length > 0 ? (
+                  userData.experiences.map((exp, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between">
+                        <Input
+                          value={exp.company_name}
+                          onChange={(e) => handleExperienceChange(index, 'company_name', e.target.value)}
+                          placeholder="Company Name"
+                          className="font-medium border-none focus-visible:ring-0 px-0"
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteExperience(index)}
+                        >
+                          <Trash className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <Input
+                        value={exp.job_title}
+                        onChange={(e) => handleExperienceChange(index, 'job_title', e.target.value)}
+                        placeholder="Job Title"
+                      />
+                      <Textarea
+                        value={exp.description}
+                        onChange={(e) => handleExperienceChange(index, 'description', e.target.value)}
+                        placeholder="Job description"
+                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={exp.start_date}
+                            onChange={(e) => handleExperienceChange(index, 'start_date', e.target.value)}
+                            placeholder="Start Date"
+                            type="date"
+                          />
+                          <Input
+                            value={exp.end_date}
+                            onChange={(e) => handleExperienceChange(index, 'end_date', e.target.value)}
+                            placeholder="End Date"
+                            type="date"
+                            disabled={exp.currently_working}
+                          />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="achievements" className="animate-slide-in">
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-xl">
-                    <Award size={20} className="mr-2" />
-                    Achievements
-                  </CardTitle>
-                  <CardDescription>Recognitions and accomplishments</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {achievements.map((achievement, index) => (
-                      <div key={index} className="p-4 rounded-lg bg-secondary/30 border border-border">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <h3 className="font-bold">{achievement.title}</h3>
-                            <p className="text-sm text-muted-foreground">{achievement.date}</p>
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Award size={20} className="text-primary" />
-                          </div>
-                        </div>
-                        <p className="mt-3 text-sm">{achievement.description}</p>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`current-${index}`}
+                          checked={exp.currently_working}
+                          onChange={(e) => handleExperienceChange(index, 'currently_working', e.target.checked)}
+                        />
+                        <label htmlFor={`current-${index}`} className="text-sm">
+                          I currently work here
+                        </label>
                       </div>
-                    ))}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground">No work experience added yet</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Education Section */}
+          <div ref={educationRef}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <GraduationCap className="mr-2 h-5 w-5" />
+                  Education
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 10th Grade */}
+                <div className="space-y-2">
+                  <h3 className="font-medium">10th Grade</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-muted-foreground">School</label>
+                      <Input 
+                        value={userData.education['10th'].school}
+                        onChange={(e) => handleEducationChange('10th', 'school', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Board</label>
+                      <Input 
+                        value={userData.education['10th'].board}
+                        onChange={(e) => handleEducationChange('10th', 'board', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Percentage</label>
+                      <Input 
+                        value={userData.education['10th'].percentage}
+                        onChange={(e) => handleEducationChange('10th', 'percentage', e.target.value)}
+                        type="number"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Passout Year</label>
+                      <Input 
+                        value={userData.education['10th'].passout_year}
+                        onChange={(e) => handleEducationChange('10th', 'passout_year', e.target.value)}
+                        type="number"
+                      />
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                </div>
+
+                {/* 12th Grade */}
+                <div className="space-y-2">
+                  <h3 className="font-medium">12th Grade</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-muted-foreground">School</label>
+                      <Input 
+                        value={userData.education['12th'].school}
+                        onChange={(e) => handleEducationChange('12th', 'school', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Board</label>
+                      <Input 
+                        value={userData.education['12th'].board}
+                        onChange={(e) => handleEducationChange('12th', 'board', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Percentage</label>
+                      <Input 
+                        value={userData.education['12th'].percentage}
+                        onChange={(e) => handleEducationChange('12th', 'percentage', e.target.value)}
+                        type="number"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Passout Year</label>
+                      <Input 
+                        value={userData.education['12th'].passout_year}
+                        onChange={(e) => handleEducationChange('12th', 'passout_year', e.target.value)}
+                        type="number"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Graduation */}
+                <div className="space-y-2">
+                  <h3 className="font-medium">Graduation</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-muted-foreground">College</label>
+                      <Input 
+                        value={userData.education.graduation.college}
+                        onChange={(e) => handleEducationChange('graduation', 'college', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Branch</label>
+                      <Input 
+                        value={userData.education.graduation.branch}
+                        onChange={(e) => handleEducationChange('graduation', 'branch', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Percentage</label>
+                      <Input 
+                        value={userData.education.graduation.percentage}
+                        onChange={(e) => handleEducationChange('graduation', 'percentage', e.target.value)}
+                        type="number"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Passout Year</label>
+                      <Input 
+                        value={userData.education.graduation.passout_year}
+                        onChange={(e) => handleEducationChange('graduation', 'passout_year', e.target.value)}
+                        type="number"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Navigation (Fixed at bottom) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-background border-t">
+        <div className="flex justify-around p-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => scrollToSection(skillsRef)}
+            className="flex-col h-auto"
+          >
+            <Briefcase className="h-4 w-4 mb-1" />
+            <span className="text-xs">Skills</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => scrollToSection(projectsRef)}
+            className="flex-col h-auto"
+          >
+            <FileText className="h-4 w-4 mb-1" />
+            <span className="text-xs">Projects</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => scrollToSection(experiencesRef)}
+            className="flex-col h-auto"
+          >
+            <Award className="h-4 w-4 mb-1" />
+            <span className="text-xs">Experience</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => scrollToSection(educationRef)}
+            className="flex-col h-auto"
+          >
+            <GraduationCap className="h-4 w-4 mb-1" />
+            <span className="text-xs">Education</span>
+          </Button>
         </div>
       </div>
     </div>

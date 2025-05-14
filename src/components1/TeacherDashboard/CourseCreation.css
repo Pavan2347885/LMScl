@@ -411,7 +411,7 @@
     width: 24px;
   }
   
-  .content-wrapper {
+  .content-wrapper1 {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     overflow: hidden;
@@ -419,7 +419,7 @@
     background-color: white;
   }
   
-  .content-wrapper:hover {
+  .content-wrapper1:hover {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     border-color: #d1d5db;
   }

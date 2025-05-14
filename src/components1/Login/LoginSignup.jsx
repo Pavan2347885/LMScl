@@ -19,6 +19,7 @@ const LoginSignup = ({ isSignup, setToken }) => {
   });
   const [rememberMe, setRememberMe] = useState(false);
   const MAX_PASSWORD_LENGTH = 12;
+  const [isLoading, setIsLoading] = useState(false);
 
   // Check for saved username on component mount
   useEffect(() => {
@@ -74,7 +75,8 @@ const LoginSignup = ({ isSignup, setToken }) => {
       confirmPassword: ""
     });
   };
-const handlePasswordInput = (e) => {
+
+  const handlePasswordInput = (e) => {
     // Enforce maximum length
     if (e.target.value.length > MAX_PASSWORD_LENGTH) {
       e.target.value = e.target.value.slice(0, MAX_PASSWORD_LENGTH);
@@ -84,15 +86,17 @@ const handlePasswordInput = (e) => {
       setValidationErrors(prev => ({ ...prev, password: "" }));
     }
   };
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const username = e.target.loginUsername.value;
     const password = e.target.loginPassword.value;
-
+    setIsLoading(true);
     try {
       const data = await loginUser(username, password);
       console.log("API Response:", data);
       console.log("API Response:", data.token);
+      
 
       if (!data || !data.token) {
         throw new Error("Invalid response: Token is missing.");
@@ -108,17 +112,19 @@ const handlePasswordInput = (e) => {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       setToken(data.token);
+      console.log(localStorage.getItem("token"));
+
       navigate("/student");
     } catch (error) {
-      if (error?.message) {
-        setErrorMessage(error.message);
-      } else {
+      toast.error(error || "An error occurred");
+      setIsLoading(false);
         setErrorMessage(error || "An error occurred");
-      }
+      
       setTimeout(() => {
         setErrorMessage("");
       }, 5000);
     }
+    setIsLoading(false);
   };
 
   const handleSignupSubmit = async (e) => {
@@ -154,22 +160,23 @@ const handlePasswordInput = (e) => {
       email: e.target.signupEmail.value,
       password,
     };
-
+    setIsLoading(true);
     try {
       const data = await signupUser(userData);
       console.log("Signup successful", data);
       window.location.reload();
       navigate("/login");
+      setIsLoading(false);
     } catch (error) {
-      if (error?.message) {
-        setErrorMessage(error.message);
-      } else {
+      setIsLoading(false);
+        toast.error(error || "An error occurred");
         setErrorMessage(error || "An error occurred");
-      }
+      
       setTimeout(() => {
         setErrorMessage("");
       }, 5000);
     }
+    setIsLoading(false);
   };
 
   const handleInputChange = (e) => {
@@ -222,7 +229,7 @@ const handlePasswordInput = (e) => {
               </label>
               <input 
                 type="password" 
-                className="login-input" 
+                className="login-input password-input" 
                 id="loginPassword" 
                 required 
                 maxLength={MAX_PASSWORD_LENGTH}
@@ -240,9 +247,13 @@ const handlePasswordInput = (e) => {
               <label htmlFor="rememberMe">Remember me</label>
             </div>
             
-            <button type="submit" className="login-button">
+            {isLoading ? (
+          <div className="loading-spinner"></div>
+        ) : (
+          <button type="submit" className="login-button">
               Continue
             </button>
+        )}
             
             <p className="login-toggle-text">
               Don't have an account?{" "}
@@ -317,7 +328,7 @@ const handlePasswordInput = (e) => {
               </label>
               <input
                 type="password"
-                className={`login-input ${validationErrors.password ? "invalid-input" : ""}`}
+                className={`login-input password-input ${validationErrors.password ? "invalid-input" : ""}`}
                 id="signupPassword"
                 required
                 maxLength={MAX_PASSWORD_LENGTH}
@@ -338,7 +349,7 @@ const handlePasswordInput = (e) => {
               </label>
               <input
                 type="password"
-                className={`login-input ${validationErrors.confirmPassword ? "invalid-input" : ""}`}
+                className={`login-input password-input ${validationErrors.confirmPassword ? "invalid-input" : ""}`}
                 id="signupConfirmPassword"
                 required
                 maxLength={MAX_PASSWORD_LENGTH}
@@ -352,9 +363,13 @@ const handlePasswordInput = (e) => {
                 {`${document.getElementById('signupConfirmPassword')?.value?.length || 0}/${MAX_PASSWORD_LENGTH}`}
               </div>
             </div>
-            <button type="submit" className="login-button">
+            {isLoading ? (
+          <div className="loading-spinner"></div>
+        ) : (
+          <button type="submit" className="login-button">
               Continue
             </button>
+        )}
             <p className="login-toggle-text">
               Already have an account?{" "}
               <a href="#" onClick={toggleForm}>
@@ -390,7 +405,6 @@ const handlePasswordInput = (e) => {
         <Link to="/loginadmin" className="login-back-link">
           Login as Admin
         </Link>
-        
       </div>
       {errorMessage && (
         <div className="login-error-message">

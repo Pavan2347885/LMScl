@@ -24,7 +24,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
+import { ThemeProvider } from './context/ThemeContext'; // Make sure this path is correct
 import Student from "./pages/Index";
 import Admin from "./pageshr/Index";
 import NotFound from "./pages/NotFound";
@@ -68,6 +68,7 @@ const App = () => {
  
   return (
     <QueryClientProvider client={queryClient}>
+       <ThemeProvider> {/* Add ThemeProvider here */}
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -122,6 +123,7 @@ const App = () => {
           </BrowserRouter>
         
       </TooltipProvider>
+      </ThemeProvider> {/* Close ThemeProvider */}
     </QueryClientProvider>
   );
 };

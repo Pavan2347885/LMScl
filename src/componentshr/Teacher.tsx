@@ -1,39 +1,88 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Search, Edit, Archive, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
-import { teachers, archiveTeacher, updateTeacher, addTeacher } from '@/services/api';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MoreHorizontal, Search, Edit, Archive, RefreshCw, Mail, Phone, MapPin, User, Calendar as CalendarIcon, Filter, X } from 'lucide-react';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { teachers, archiveTeacher, updateTeacher, addTeacher } from '@/services/api';
+import { Textarea } from '@headlessui/react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from 'react-day-picker';
 
 interface Teacher {
   _id: string;
+  id: number;
   username: string;
   email: string;
   first_name: string;
   last_name: string;
-  password?: string;
-  is_active: boolean;
   role: string;
+  is_active: boolean;
+  date_joined?: string | null;
+  last_login?: string | null;
+  password?: string;
+  mobile: string;
+  location: string;
+  profile_picture: string;
+  subjects?: string[];
+  qualifications?: string[];
 }
 
 export const Teachers: React.FC = () => {
   const [teachersData, setTeachersData] = useState<Teacher[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Teacher>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [nameSearch, setNameSearch] = useState('');
+  const [emailSearch, setEmailSearch] = useState('');
+  const [phoneSearch, setPhoneSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
+  const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [qualificationFilter, setQualificationFilter] = useState<string>('all');
+  const [dateJoinedFilter, setDateJoinedFilter] = useState<DateRange | undefined>();
+  const [lastLoginFilter, setLastLoginFilter] = useState<DateRange | undefined>();
+
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'MMM dd, yyyy');
+    } catch {
+      return 'N/A';
+    }
+  };
 
   const fetchTeachers = useCallback(async () => {
     try {
@@ -43,8 +92,9 @@ export const Teachers: React.FC = () => {
       setTeachersData(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching teachers:', err);
-      toast.error('Failed to load teacher data');
       setError('Failed to load teacher data');
+      toast.error('Failed to load teacher data');
+      setTeachersData([]);
     } finally {
       setLoading(false);
     }
@@ -54,52 +104,152 @@ export const Teachers: React.FC = () => {
     fetchTeachers();
   }, [fetchTeachers]);
 
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleArchive = async (id: string) => {
+    try {
+      if (!window.confirm("Are you sure to archive this teacher?")) return;
+      await archiveTeacher(id);
+      toast.success("Teacher archived successfully");
+      fetchTeachers();
+    } catch (err) {
+      toast.error("Failed to archive teacher");
+    }
+  };
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type, checked } = e.target as HTMLInputElement;
     setEditForm(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
-  const handleAddTeacher = async () => {
-    try {
-      await addTeacher(editForm);
-      toast.success('Teacher added successfully');
-      fetchTeachers();
-      setIsModalOpen(false);
-      setEditForm({});
-    } catch (error) {
-      toast.error('Failed to add teacher');
-    }
+  const startEditing = (teacher: Teacher) => {
+    setEditingId(teacher._id);
+    setEditForm({
+      username: teacher.username,
+      email: teacher.email,
+      first_name: teacher.first_name,
+      last_name: teacher.last_name,
+      is_active: teacher.is_active,
+      mobile: teacher.mobile,
+      location: teacher.location,
+      subjects: teacher.subjects,
+      qualifications: teacher.qualifications
+    });
   };
 
-  const handleArchive = async (id: string) => {
-    if (!window.confirm('Are you sure you want to archive this teacher?')) return;
-    try {
-      await archiveTeacher(id);
-      toast.success('Teacher archived successfully');
-      fetchTeachers();
-    } catch (err) {
-      toast.error('Failed to archive teacher');
-    }
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditForm({});
   };
 
   const saveEdit = async (id: string) => {
     try {
       await updateTeacher(id, editForm);
-      toast.success('Teacher updated');
-      setEditingId(null);
+      toast.success("Teacher updated successfully");
+      cancelEditing();
       fetchTeachers();
-    } catch {
-      toast.error('Update failed');
+    } catch (err) {
+      toast.error("Failed to update teacher");
     }
   };
 
-  const filtered = teachersData.filter(teacher =>
-    [teacher.username, teacher.email, teacher.first_name, teacher.last_name]
-      .some(field => field?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const handleAddTeacher = async () => {
+    try {
+      await addTeacher(editForm);
+      toast.success("Teacher added successfully");
+      fetchTeachers();
+      setEditForm({});
+      setIsModalOpen(false);
+    } catch (err) {
+      toast.error("Failed to add teacher");
+    }
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setNameSearch('');
+    setEmailSearch('');
+    setPhoneSearch('');
+    setStatusFilter('all');
+    setLocationFilter('all');
+    setSubjectFilter('all');
+    setQualificationFilter('all');
+    setDateJoinedFilter(undefined);
+    setLastLoginFilter(undefined);
+  };
+
+  const filteredTeachers = teachersData.filter(teacher => {
+    // Combined search term filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      if (!(
+        teacher.username?.toLowerCase().includes(search) ||
+        teacher.email?.toLowerCase().includes(search) ||
+        teacher.first_name?.toLowerCase().includes(search) ||
+        teacher.last_name?.toLowerCase().includes(search) ||
+        teacher.mobile?.toLowerCase().includes(search) ||
+        teacher.id?.toString().includes(search)
+      )) {
+        return false;
+      }
+    }
+    
+    // Individual search filters
+    if (nameSearch && !(
+      teacher.first_name?.toLowerCase().includes(nameSearch.toLowerCase()) ||
+      teacher.last_name?.toLowerCase().includes(nameSearch.toLowerCase()) ||
+      teacher.username?.toLowerCase().includes(nameSearch.toLowerCase())
+    )) return false;
+    
+    if (emailSearch && !teacher.email?.toLowerCase().includes(emailSearch.toLowerCase())) return false;
+    
+    if (phoneSearch && !teacher.mobile?.includes(phoneSearch)) return false;
+    
+    // Status filter
+    if (statusFilter === 'active' && !teacher.is_active) return false;
+    if (statusFilter === 'inactive' && teacher.is_active) return false;
+    
+    // Location filter
+    if (locationFilter !== 'all' && teacher.location !== locationFilter) return false;
+    
+    // Subject filter
+    if (subjectFilter !== 'all' && 
+        teacher.subjects && 
+        !teacher.subjects.includes(subjectFilter)) return false;
+    
+    // Qualification filter
+    if (qualificationFilter !== 'all' && 
+        teacher.qualifications && 
+        !teacher.qualifications.includes(qualificationFilter)) return false;
+    
+    // Date joined filter
+    if (dateJoinedFilter?.from || dateJoinedFilter?.to) {
+      const joinedDate = teacher.date_joined ? new Date(teacher.date_joined) : null;
+      if (!joinedDate) return false;
+      if (dateJoinedFilter.from && joinedDate < dateJoinedFilter.from) return false;
+      if (dateJoinedFilter.to && joinedDate > new Date(dateJoinedFilter.to.setHours(23, 59, 59, 999))) return false;
+    }
+    
+    // Last login filter
+    if (lastLoginFilter?.from || lastLoginFilter?.to) {
+      const loginDate = teacher.last_login ? new Date(teacher.last_login) : null;
+      if (!loginDate) return false;
+      if (lastLoginFilter.from && loginDate < lastLoginFilter.from) return false;
+      if (lastLoginFilter.to && loginDate > new Date(lastLoginFilter.to.setHours(23, 59, 59, 999))) return false;
+    }
+    
+    return true;
+  });
+
+  // Get unique values for filter dropdowns
+  const uniqueLocations = Array.from(new Set(teachersData.map(t => t.location).filter(Boolean)));
+  const uniqueSubjects = Array.from(new Set(
+    teachersData.flatMap(t => t.subjects || []).filter(Boolean)
+  ));
+  const uniqueQualifications = Array.from(new Set(
+    teachersData.flatMap(t => t.qualifications || []).filter(Boolean)
+  ));
 
   const getInitials = (firstName?: string, lastName?: string) => {
     const first = firstName?.charAt(0) || '';
@@ -108,164 +258,303 @@ export const Teachers: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Teacher Management</h1>
-          <p className="text-muted-foreground mt-1">Manage all teacher accounts</p>
-        </header>
+    <div className="page-container p-6">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">Teacher Management</h1>
+        <p className="text-muted-foreground mt-1">View and manage teacher accounts</p>
+      </header>
 
-        <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
-          <div className="relative w-full md:w-96">
+      <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
+        <div className="flex items-center gap-4 w-full">
+          <Button 
+            variant={showFilters ? "default" : "outline"} 
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2"
+          >
+            <Filter size={16} />
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+          
+          {showFilters && (
+            <Button 
+              variant="ghost" 
+              onClick={resetFilters}
+              className="flex items-center gap-2"
+            >
+              <X size={16} />
+              Reset Filters
+            </Button>
+          )}
+          
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search teachers..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              className="pl-9" 
+            <Input
+              placeholder="Search by name, email, phone..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={fetchTeachers}>
-              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-            </Button>
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-              <DialogTrigger asChild>
-                <Button>Add Teacher</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Add New Teacher</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <Input 
-                    placeholder="Username" 
-                    name="username" 
-                    value={editForm.username || ''} 
-                    onChange={handleEditChange} 
+        </div>
+        
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchTeachers}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button>Add New Teacher</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Teacher</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                <Input name="username" value={editForm.username || ''} onChange={handleEditChange} placeholder="Username" />
+                <Input name="password" value={editForm.password || ''} onChange={handleEditChange} placeholder="Password" />
+                <Input name="email" value={editForm.email || ''} onChange={handleEditChange} placeholder="Email" />
+                <Input name="first_name" value={editForm.first_name || ''} onChange={handleEditChange} placeholder="First Name" />
+                <Input name="last_name" value={editForm.last_name || ''} onChange={handleEditChange} placeholder="Last Name" />
+                <Input name="mobile" value={editForm.mobile || ''} onChange={handleEditChange} placeholder="Mobile" />
+                <Input name="location" value={editForm.location || ''} onChange={handleEditChange} placeholder="Location" />
+                <div className="md:col-span-2">
+                  <Textarea 
+                    name="subjects" 
+                    value={editForm.subjects?.join(', ') || ''} 
+                    onChange={(e) => setEditForm(prev => ({ ...prev, subjects: e.target.value.split(', ') }))}
+                    placeholder="Subjects (comma separated)"
                   />
-                  <Input 
-                    placeholder="Email" 
-                    name="email" 
-                    value={editForm.email || ''} 
-                    onChange={handleEditChange} 
-                  />
-                  <Input 
-                    placeholder="First Name" 
-                    name="first_name" 
-                    value={editForm.first_name || ''} 
-                    onChange={handleEditChange} 
-                  />
-                  <Input 
-                    placeholder="Last Name" 
-                    name="last_name" 
-                    value={editForm.last_name || ''} 
-                    onChange={handleEditChange} 
-                  />
-                  <Input 
-                    placeholder="Password" 
-                    name="password" 
-                    type="password" 
-                    value={editForm.password || ''} 
-                    onChange={handleEditChange} 
-                  />
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="checkbox" 
-                      id="active" 
-                      name="is_active" 
-                      checked={editForm.is_active || false} 
-                      onChange={handleEditChange} 
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor="active">Active</label>
-                  </div>
                 </div>
-                <DialogFooter>
-                  <Button onClick={handleAddTeacher}>Add Teacher</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                <div className="md:col-span-2">
+                  <Textarea 
+                    name="qualifications" 
+                    value={editForm.qualifications?.join(', ') || ''} 
+                    onChange={(e) => setEditForm(prev => ({ ...prev, qualifications: e.target.value.split(', ') }))}
+                    placeholder="Qualifications (comma separated)"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 md:col-span-2">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    name="is_active"
+                    checked={editForm.is_active || false}
+                    onChange={handleEditChange}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="is_active">Active</label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleAddTeacher}>Add Teacher</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {showFilters && (
+        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border dark:border-gray-800">
+          {/* Individual Search Filters */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Name Search</label>
+            <Input
+              placeholder="Search by name..."
+              value={nameSearch}
+              onChange={(e) => setNameSearch(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Email Search</label>
+            <Input
+              placeholder="Search by email..."
+              value={emailSearch}
+              onChange={(e) => setEmailSearch(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Phone Search</label>
+            <Input
+              placeholder="Search by phone..."
+              value={phoneSearch}
+              onChange={(e) => setPhoneSearch(e.target.value)}
+            />
+          </div>
+          
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Status</label>
+            <Select 
+              onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}
+              value={statusFilter}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="inactive">Inactive Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Location Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Location</label>
+            <Select 
+              onValueChange={setLocationFilter}
+              value={locationFilter}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {uniqueLocations.map(location => (
+                  <SelectItem key={location} value={location}>{location}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Subject Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Subject</label>
+            <Select 
+              onValueChange={setSubjectFilter}
+              value={subjectFilter}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Subjects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subjects</SelectItem>
+                {uniqueSubjects.map(subject => (
+                  <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Qualification Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Qualification</label>
+            <Select 
+              onValueChange={setQualificationFilter}
+              value={qualificationFilter}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Qualifications" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Qualifications</SelectItem>
+                {uniqueQualifications.map(qualification => (
+                  <SelectItem key={qualification} value={qualification}>{qualification}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Date Joined Filter */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Date Joined</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateJoinedFilter?.from ? (
+                    dateJoinedFilter.to ? (
+                      <>
+                        {format(dateJoinedFilter.from, 'MMM dd, y')} -{' '}
+                        {format(dateJoinedFilter.to, 'MMM dd, y')}
+                      </>
+                    ) : (
+                      format(dateJoinedFilter.from, 'MMM dd, y')
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-50" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateJoinedFilter?.from}
+                  selected={dateJoinedFilter}
+                  onSelect={setDateJoinedFilter}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          {/* Last Login Filter */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Last Login</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {lastLoginFilter?.from ? (
+                    lastLoginFilter.to ? (
+                      <>
+                        {format(lastLoginFilter.from, 'MMM dd, y')} -{' '}
+                        {format(lastLoginFilter.to, 'MMM dd, y')}
+                      </>
+                    ) : (
+                      format(lastLoginFilter.from, 'MMM dd, y')
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-50" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={lastLoginFilter?.from}
+                  selected={lastLoginFilter}
+                  onSelect={setLastLoginFilter}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
+      )}
 
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        ) : error ? (
-          <div className="text-destructive text-center py-4">{error}</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((teacher) => (
+      {loading ? (
+        <div className="text-center py-12">Loading...</div>
+      ) : error ? (
+        <div className="text-center text-red-600">{error}</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTeachers.length > 0 ? (
+            filteredTeachers.map((teacher) => (
               <Card key={teacher._id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
                   <div className="flex items-center space-x-4">
                     <Avatar>
-                      <AvatarImage src="" />
+                      <AvatarImage src={teacher.profile_picture} />
                       <AvatarFallback>{getInitials(teacher.first_name, teacher.last_name)}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <CardTitle>{teacher.username || 'N/A'}</CardTitle>
-                      <div className="text-sm text-muted-foreground">{teacher.email || 'N/A'}</div>
+                      <CardTitle>{teacher.username}</CardTitle>
+                      <div className="text-sm text-muted-foreground truncate max-w-[180px]">{teacher.email}</div>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="w-8 h-8 p-0">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => { 
-                        setEditingId(teacher._id); 
-                        setEditForm({
-                          username: teacher.username,
-                          email: teacher.email,
-                          first_name: teacher.first_name,
-                          last_name: teacher.last_name,
-                          is_active: teacher.is_active
-                        }); 
-                      }}>
-                        <Edit className="mr-2 w-4 h-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleArchive(teacher._id)}>
-                        <Archive className="mr-2 w-4 h-4" />
-                        Archive
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <span className="font-medium mr-2">Name:</span>
-                      {editingId === teacher._id ? (
-                        <div className="flex space-x-2">
-                          <Input 
-                            name="first_name" 
-                            value={editForm.first_name || ''} 
-                            onChange={handleEditChange} 
-                            placeholder="First Name"
-                            className="w-full"
-                          />
-                          <Input 
-                            name="last_name" 
-                            value={editForm.last_name || ''} 
-                            onChange={handleEditChange} 
-                            placeholder="Last Name"
-                            className="w-full"
-                          />
-                        </div>
-                      ) : (
-                        <span>
-                          {(teacher.first_name || 'N/A') + ' ' + (teacher.last_name || '')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center">
-                      <span className="font-medium mr-2">Status:</span>
+                  <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-2">
                       {editingId === teacher._id ? (
                         <div className="flex items-center space-x-2">
                           <input
@@ -286,19 +575,104 @@ export const Teachers: React.FC = () => {
                         </Badge>
                       )}
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="w-8 h-8 p-0">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => startEditing(teacher)}>
+                          <Edit className="mr-2 w-4 h-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleArchive(teacher._id)}>
+                          <Archive className="mr-2 w-4 h-4" />
+                          Archive
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {editingId === teacher._id ? (
+                          <div className="flex space-x-2">
+                            <Input 
+                              name="first_name" 
+                              value={editForm.first_name || ''} 
+                              onChange={handleEditChange} 
+                              placeholder="First Name"
+                            />
+                            <Input 
+                              name="last_name" 
+                              value={editForm.last_name || ''} 
+                              onChange={handleEditChange} 
+                              placeholder="Last Name"
+                            />
+                          </div>
+                        ) : (
+                          `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || 'N/A'
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {editingId === teacher._id ? (
+                          <Input 
+                            name="mobile" 
+                            value={editForm.mobile || ''} 
+                            onChange={handleEditChange} 
+                          />
+                        ) : teacher.mobile || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {editingId === teacher._id ? (
+                          <Input 
+                            name="location" 
+                            value={editForm.location || ''} 
+                            onChange={handleEditChange} 
+                          />
+                        ) : teacher.location || 'N/A'}
+                      </span>
+                    </div>
+                    {teacher.subjects && teacher.subjects.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {teacher.subjects.map(subject => (
+                          <Badge key={subject} variant="secondary">{subject}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center">
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Joined: {formatDate(teacher.date_joined)}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Last login: {formatDate(teacher.last_login)}</span>
+                    </div>
                   </div>
                 </CardContent>
                 {editingId === teacher._id && (
                   <CardFooter className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <Button variant="outline" onClick={cancelEditing}>Cancel</Button>
                     <Button onClick={() => saveEdit(teacher._id)}>Save</Button>
                   </CardFooter>
                 )}
               </Card>
-            ))}
-          </div>
-        )}
-      
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">No teachers found.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

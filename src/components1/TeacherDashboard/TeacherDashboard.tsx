@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import { useNavigate } from 'react-router-dom';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FiMenu, FiX, FiMoreVertical } from 'react-icons/fi';
 import {
   faBook,
   faChartBar,
@@ -126,7 +127,8 @@ const TeacherDashboard: React.FC = () => {
     console.log('Assigning again assessment:', id);
     // TODO: Implement re-assign logic here
   };
-
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleAssignAssessment = async (assessmentId) => {
     setIsAssigning(true);
@@ -399,11 +401,12 @@ console.log('dvnovnoivn');
       </body>
       </html>
     `;
-
+    
     const printWindow = window.open('', '_blank');
     printWindow.document.write(printContent);
     printWindow.document.close();
   };
+  const [showHamburger, setShowHamburger] = useState(false);
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.menu-wrapper')) {
@@ -413,14 +416,67 @@ console.log('dvnovnoivn');
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+  
 
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) setSidebarOpen(true);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  useEffect(() => {
+    let timer;
+    if (isMobile && !sidebarOpen) {
+      timer = setTimeout(() => {
+        setShowHamburger(true);
+      }, 100); // 3 second delay
+    } else {
+      setShowHamburger(false);
+      if (timer) clearTimeout(timer);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isMobile, sidebarOpen]);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   return (
     <div className="dashboard">
+      {/* Mobile Menu Toggle (Three Dots) */}
+     
+
+      {/* Sidebar Overlay */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={toggleSidebar}
+          aria-hidden="true"
+        />
+      )}
+
+
       {/* Sidebar */}
-      <div className="sidebar">
+      <div className={`sidebar ${sidebarOpen ? 'active' : ''}`}>
         <div className="sidebar-header">
           <h1>TeacherPortal</h1>
+          {isMobile && (
+            <button 
+              className="close-sidebar" 
+              onClick={toggleSidebar}
+              aria-label="Close navigation"
+            >
+              <FiX size={24} />
+            </button>
+          )}
         </div>
         <ul className="nav-links">
           <li
@@ -469,17 +525,36 @@ console.log('dvnovnoivn');
 
       {/* Main Content */}
       <div className="main-content">
+      
         {/* Courses Section */}
+        
         <section className={`section ${isSectionVisible('courses') ? 'active' : ''}`} id="courses-section">
-          <div className="search-bar">
-            <input
-              type="text"
-              placeholder="Search courses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <FontAwesomeIcon icon={faSearch} />
-          </div>
+        <div className="top-bar">
+  {showHamburger && (
+    <div className="hamburger-container">
+      <button 
+        className="hamburger-toggle" 
+        onClick={toggleSidebar}
+        aria-label="Toggle navigation"
+        aria-expanded={sidebarOpen}
+      >
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+      </button>
+    </div>
+  )}
+
+  <div className="search-bar">
+    <input
+      type="text"
+      placeholder="Search courses..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+    <FontAwesomeIcon icon={faSearch} />
+  </div>
+</div>
 
           <h2 >Your Courses</h2>
           <div className="card-grid">
@@ -526,15 +601,32 @@ console.log('dvnovnoivn');
 
         {/*Blog */}
         <section className={`section ${isSectionVisible('blog') ? 'active' : ''}`} id="courses-section">
-          <div className="search-bar">
-            <input
-              type="text"
-              placeholder="Search Blogs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <FontAwesomeIcon icon={faSearch} />
-          </div>
+        <div className="top-bar">
+  {showHamburger && (
+    <div className="hamburger-container">
+      <button 
+        className="hamburger-toggle" 
+        onClick={toggleSidebar}
+        aria-label="Toggle navigation"
+        aria-expanded={sidebarOpen}
+      >
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+      </button>
+    </div>
+  )}
+
+  <div className="search-bar">
+    <input
+      type="text"
+      placeholder="Search courses..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+    <FontAwesomeIcon icon={faSearch} />
+  </div>
+</div>
 
           <h2 >Your Blogs</h2>
           <div className="card-grid">
@@ -580,10 +672,32 @@ console.log('dvnovnoivn');
 
         {/* Performance Section */}
         <section className={`section ${isSectionVisible('performance') ? 'active' : ''}`} id="performance-section">
-          <div className="search-bar">
-            <input type="text" placeholder="Search courses..." />
-            <FontAwesomeIcon icon={faSearch} />
-          </div>
+        <div className="top-bar">
+  {showHamburger && (
+    <div className="hamburger-container">
+      <button 
+        className="hamburger-toggle" 
+        onClick={toggleSidebar}
+        aria-label="Toggle navigation"
+        aria-expanded={sidebarOpen}
+      >
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+      </button>
+    </div>
+  )}
+
+  <div className="search-bar">
+    <input
+      type="text"
+      placeholder="Search courses..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+    <FontAwesomeIcon icon={faSearch} />
+  </div>
+</div>
           <h2>Student Performance</h2>
           <div className="card-grid">
             <div className="card performance-card">
@@ -625,10 +739,32 @@ console.log('dvnovnoivn');
 
         {/* Assessments Section - Main View */}
         <section className={`section ${isSectionVisible('assessmentsMain') ? 'active' : ''}`} id="assessments-main-section">
-          <div className="search-bar">
-            <input type="text" placeholder="Search courses..." />
-            <FontAwesomeIcon icon={faSearch} />
-          </div>
+        <div className="top-bar">
+  {showHamburger && (
+    <div className="hamburger-container">
+      <button 
+        className="hamburger-toggle" 
+        onClick={toggleSidebar}
+        aria-label="Toggle navigation"
+        aria-expanded={sidebarOpen}
+      >
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+      </button>
+    </div>
+  )}
+
+  <div className="search-bar">
+    <input
+      type="text"
+      placeholder="Search courses..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+    <FontAwesomeIcon icon={faSearch} />
+  </div>
+</div>
           <div className="filter-tabs">
             <button
               className={`tab ${activeFilter === 'all' ? 'active' : ''}`}
@@ -782,10 +918,32 @@ console.log('dvnovnoivn');
 
         {/* Resources Section */}
         <section className={`section ${isSectionVisible('resources') ? 'active' : ''}`} id="resources-section">
-          <div className="search-bar">
-            <input type="text" placeholder="Search courses..." />
-            <FontAwesomeIcon icon={faSearch} />
-          </div>
+        <div className="top-bar">
+  {showHamburger && (
+    <div className="hamburger-container">
+      <button 
+        className="hamburger-toggle" 
+        onClick={toggleSidebar}
+        aria-label="Toggle navigation"
+        aria-expanded={sidebarOpen}
+      >
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+        <span className="hamburger-line"></span>
+      </button>
+    </div>
+  )}
+
+  <div className="search-bar">
+    <input
+      type="text"
+      placeholder="Search courses..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+    <FontAwesomeIcon icon={faSearch} />
+  </div>
+</div>
           <h2>Course Resources</h2>
           <div className="resource-selector">
             <label htmlFor="resource-course-select">Select Course:</label>
@@ -1219,6 +1377,7 @@ console.log('dvnovnoivn');
 
         .section.active {
           display: block;
+         
         }
 
         .card-grid {
@@ -1473,6 +1632,7 @@ console.log('dvnovnoivn');
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  
 }
 
 .filter-tabs .tab {
@@ -2260,8 +2420,10 @@ console.log('dvnovnoivn');
 }
         @media (max-width: 768px) {
           .main-content {
-            margin-left: 0;
-            padding-left: calc(var(--sidebar-width) + 20px);
+            margin-left: 5px;
+            margin-right: 5px;
+            
+           
           }
           
           .card-grid {
@@ -2295,6 +2457,236 @@ console.log('dvnovnoivn');
             width: 100%;
           }
         }
+          /* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 99;
+  background: #2c3e50;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Close Button for Mobile */
+.close-sidebar {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  position: absolute;
+  right: 15px;
+  top: 15px;
+  cursor: pointer;
+}
+
+/* Responsive Behavior */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    width: 280px;
+  }
+  
+  .sidebar.active {
+    transform: translateX(0);
+  }
+  
+ 
+  .mobile-menu-toggle {
+    display: flex;
+  }
+  
+  .close-sidebar {
+    display: block;
+  }
+  
+  .sidebar-header {
+    position: relative;
+    padding-right: 40px;
+  }
+}
+  /* Professional Hamburger Menu */
+.hamburger-container {
+ 
+}
+
+.hamburger-toggle {
+margin-top: 0;
+   background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 20px;
+  width: 25px;
+}
+
+.hamburger-toggle:hover {
+  background: #f8f9fa;
+  transform: translateY(-2px);
+}
+
+.hamburger-line {
+  height: 3px;
+  width: 100%;
+  background-color: #333;
+  border-radius: 2px;
+}
+
+.hamburger-toggle:hover .hamburger-line {
+  background-color:rgb(4, 53, 169);
+}
+
+/* Sidebar Header Styling */
+.sidebar-header {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 16px;
+}
+
+.tagline {
+  margin-bottom: 24px;
+}
+
+.tagline p {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.sidebar-subheader {
+  padding: 0 24px 24px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.sidebar-subheader p {
+  margin: 0;
+}
+
+/* Close Button */
+.close-sidebar {
+  position: absolute;
+  top: 29px;
+  right: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-sidebar:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+/* Responsive Behavior */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 320px;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+  }
+  
+  .sidebar.active {
+    transform: translateX(0);
+  }
+    .search-bar {
+    margin-top: 20px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  padding: 10px 10px;
+  border-radius: 4px;
+  flex-grow: 1; /* make search bar expand */
+}
+
+.search-bar input {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  flex-grow: 1;
+}
+
+.search-bar svg {
+  color: #888;
+}
+        .top-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem; 
+  padding: 10px 20px;
+  padding-bottom: 0;
+  padding-top: 0;
+  background-color: #fff;
+}
+  .filter-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  margin-top: 20px;
+  
+}
+  .modal {
+          background-color: white;
+          border-radius: 8px;
+          box-shadow: var(--shadow);
+          width: 90%;
+          max-width: 600px;
+          transition: var(--transition);
+          transform: translateY(-20px);
+        }
+  
+  
+}
+  
       `}</style>
     </div>
   );

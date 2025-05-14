@@ -1082,7 +1082,7 @@ const CourseCreator: React.FC = () => {
                                   >
                                     {(provided) => (
                                       <div
-                                        className="content-wrapper"
+                                        className="content-wrapper1"
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                       >

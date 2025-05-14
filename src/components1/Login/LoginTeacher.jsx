@@ -6,6 +6,7 @@ import { loginTeacher, signupTeacher, API_BASE_URL } from "../../services/api.ts
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import loginImage from "../../assets/img/img3.jpg"
+import { toast } from 'sonner';
 
 const LoginSignup = ({ isSignup, setToken }) => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const LoginSignup = ({ isSignup, setToken }) => {
   });
   const [rememberMe, setRememberMe] = useState(false);
   const MAX_PASSWORD_LENGTH = 12;
+  const [isLoading, setIsLoading] = useState(false);
 
   // Check for saved username on component mount
   useEffect(() => {
@@ -88,11 +90,10 @@ const LoginSignup = ({ isSignup, setToken }) => {
     e.preventDefault();
     const username = e.target.loginUsername.value;
     const password = e.target.loginPassword.value;
-
+    setIsLoading(true); // Start loading
     try {
       const data = await loginTeacher(username, password);
-      console.log("API Response:", data);
-      console.log("API Response:", data.token);
+      
 
       if (!data || !data.token) {
         throw new Error("Invalid response: Token is missing.");
@@ -110,15 +111,15 @@ const LoginSignup = ({ isSignup, setToken }) => {
       setToken(data.token);
       navigate("/teacherdashbord");
     } catch (error) {
-      if (error?.message) {
-        setErrorMessage(error.message);
-      } else {
+      toast.error(error || "An error occurred");
+      setIsLoading(false);
         setErrorMessage(error || "An error occurred");
-      }
+      
       setTimeout(() => {
         setErrorMessage("");
       }, 5000);
     }
+    setIsLoading(false);
   };
 
   const handleSignupSubmit = async (e) => {
@@ -154,22 +155,24 @@ const LoginSignup = ({ isSignup, setToken }) => {
       email: e.target.signupEmail.value,
       password,
     };
+    setIsLoading(true);
 
     try {
       const data = await signupTeacher(userData);
       console.log("Signup successful", data);
       window.location.reload();
       navigate("/loginteacher");
+      setIsLoading(false);
     } catch (error) {
-      if (error?.message) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(error || "An error occurred");
-      }
-      setTimeout(() => {
-        setErrorMessage("");
-      }, 5000);
+      setIsLoading(false);
+              toast.error(error || "An error occurred");
+              setErrorMessage(error || "An error occurred");
+            
+            setTimeout(() => {
+              setErrorMessage("");
+            }, 5000);
     }
+    setIsLoading(false);
   };
 
   const handleInputChange = (e) => {
@@ -237,10 +240,13 @@ const LoginSignup = ({ isSignup, setToken }) => {
                 />
                 <label htmlFor="rememberMe">Remember me</label>
               </div>
-
-              <button type="submit" className="login-button">
-                Continue
-              </button>
+              {isLoading ? (
+          <div className="loading-spinner " ></div>
+        ) : (
+          <button type="submit" className="login-button">
+              Continue
+            </button>
+        )}
               <p className="login-toggle-text">
                 Don't have an account?{" "}
                 <a href="#" onClick={toggleForm}>
@@ -348,9 +354,13 @@ const LoginSignup = ({ isSignup, setToken }) => {
                   {`${document.getElementById('signupConfirmPassword')?.value?.length || 0}/${MAX_PASSWORD_LENGTH}`}
                 </div>
               </div>
-              <button type="submit" className="login-button">
-                Continue
-              </button>
+              {isLoading ? (
+          <div className="loading-spinner " ></div>
+        ) : (
+          <button type="submit" className="login-button">
+              Continue
+            </button>
+        )}
               <p className="login-toggle-text">
                 Already have an account?{" "}
                 <a href="#" onClick={toggleForm}>

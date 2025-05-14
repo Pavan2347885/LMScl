@@ -1,289 +1,577 @@
-import React from 'react';
-import { Briefcase, MapPin, Clock, Building, ExternalLink, BookmarkPlus } from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, { useEffect, useState } from 'react';
+import { Clock, MapPin, Building, DollarSign, Briefcase, BookOpen, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
+import { fetchJobs, searchJobs } from '@/services/api';
+import { applyForJob, checkJobApplied } from '@/services/api';
+import { jwtDecode } from 'jwt-decode';
 
-// Mock data for jobs
-const jobsData = [
-  {
-    id: 1,
-    title: 'Frontend Developer',
-    company: 'TechCorp Solutions',
-    location: 'San Francisco, CA',
-    type: 'Full-time',
-    salary: '$90,000 - $120,000',
-    postedDate: '2023-11-01',
-    description: 'We are looking for a skilled Frontend Developer to join our innovative team. You will be responsible for building user interfaces for web applications.',
-    requirements: ['3+ years of React experience', 'Strong JavaScript skills', 'Experience with CSS frameworks', 'Knowledge of responsive design'],
-    logo: 'https://placehold.co/100?text=TC'
-  },
-  {
-    id: 2,
-    title: 'Backend Engineer',
-    company: 'DataFlow Systems',
-    location: 'Austin, TX',
-    type: 'Full-time',
-    salary: '$110,000 - $140,000',
-    postedDate: '2023-11-03',
-    description: 'Join our backend team to design and implement scalable APIs and services that power our platform.',
-    requirements: ['Experience with Node.js or Python', 'Database design knowledge', 'RESTful API development', 'Experience with cloud platforms'],
-    logo: 'https://placehold.co/100?text=DF'
-  },
-  {
-    id: 3,
-    title: 'Data Scientist',
-    company: 'Insight Analytics',
-    location: 'Remote',
-    type: 'Full-time',
-    salary: '$100,000 - $130,000',
-    postedDate: '2023-11-05',
-    description: 'We are seeking a Data Scientist to analyze large datasets and build machine learning models to solve business problems.',
-    requirements: ['Masters or PhD in relevant field', 'Experience with Python, R, and SQL', 'Machine learning expertise', 'Statistical analysis skills'],
-    logo: 'https://placehold.co/100?text=IA'
-  },
-  {
-    id: 4,
-    title: 'UX/UI Designer',
-    company: 'Creative Minds',
-    location: 'New York, NY',
-    type: 'Contract',
-    salary: '$80,000 - $100,000',
-    postedDate: '2023-11-07',
-    description: 'Join our design team to create beautiful and intuitive user experiences for our products.',
-    requirements: ['Portfolio demonstrating UX/UI skills', 'Proficiency with design tools', 'Understanding of user-centered design', 'Experience with design systems'],
-    logo: 'https://placehold.co/100?text=CM'
-  },
-  {
-    id: 5,
-    title: 'Full Stack Developer',
-    company: 'Nexus Technologies',
-    location: 'Chicago, IL',
-    type: 'Full-time',
-    salary: '$95,000 - $125,000',
-    postedDate: '2023-11-10',
-    description: 'We need a versatile Full Stack Developer who can work on both frontend and backend aspects of our applications.',
-    requirements: ['Experience with React and Node.js', 'Database management skills', 'API development experience', 'Understanding of DevOps principles'],
-    logo: 'https://placehold.co/100?text=NT'
-  }
+interface Job {
+  _id: string;
+  Job: string;
+  Org: string;
+  Location: string;
+  job_type: string;
+  Salary: string;
+  experience: string;
+  education: string;
+  posted_date: string;
+  deadline: string;
+  Skills: string[] | string;
+  FullDescription: string;
+  hr_id: string;
+}
+
+// Color palette for job card borders
+const jobCardColors = [
+  'border-l-4 border-blue-600',
+  'border-l-4 border-emerald-500',
+  'border-l-4 border-violet-500',
+  'border-l-4 border-rose-500',
+  'border-l-4 border-indigo-600',
+  'border-l-4 border-teal-500',
+  'border-l-4 border-amber-500',
+  'border-l-4 border-red-600'
 ];
 
-// Calculate days since posting
-const calculateDaysAgo = (postedDate: string) => {
-  const today = new Date();
-  const posted = new Date(postedDate);
-  const diffTime = today.getTime() - posted.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  return `${diffDays} days ago`;
-};
+export const Jobs = () => {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const { theme } = useTheme();
+  const [appliedJobs, setAppliedJobs] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 6;
 
-export const Jobs: React.FC = () => {
-  const [searchQuery, setSearchQuery] = React.useState('');
-  
-  // Filter jobs based on search query
-  const filteredJobs = jobsData.filter(job => 
-    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.location.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-  return (
-    <div className="page-container">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Job Board</h1>
-        <p className="text-muted-foreground mt-1">Discover job opportunities tailored to your skills</p>
-      </header>
+  const jobTypes = ['all', 'full-time', 'part-time', 'contract', 'internship', 'remote'];
+
+  // Theme-based classes
+  const containerClasses = theme === 'dark' 
+    ? 'bg-gray-900 text-white' 
+    : 'bg-gray-50 text-gray-800';
+
+  const cardClasses = theme === 'dark'
+    ? 'bg-gray-800 border-gray-700 hover:shadow-gray-800'
+    : 'bg-white border-gray-100 hover:shadow-lg';
+
+  const inputClasses = theme === 'dark'
+    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+    : 'bg-white border-gray-300 text-gray-800 placeholder-gray-500';
+
+  const buttonClasses = (isActive: boolean) => 
+    theme === 'dark'
+      ? isActive
+        ? 'bg-blue-700 text-white'
+        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      : isActive
+        ? 'bg-blue-600 text-white'
+        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300';
+
+  const modalClasses = theme === 'dark'
+    ? 'bg-gray-800 text-gray-100'
+    : 'bg-white text-gray-800';
+
+  // Calculate pagination
+  const indexOfLastJob = currentPage * jobsPerPage;
+  const indexOfFirstJob = indexOfLastJob - jobsPerPage;
+  const currentJobs = jobs.slice(indexOfFirstJob, indexOfLastJob);
+  const totalPages = Math.ceil(jobs.length / jobsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  useEffect(() => {
+    const loadJobs = async () => {
+      try {
+        setLoading(true);
+        let data;
+
+        if (searchQuery) {
+          data = await searchJobs(searchQuery);
+          data = sortJobsByDate(data);
+        } else if (activeTab !== 'all') {
+          data = await filterJobsByType(activeTab);
+        } else {
+          data = await fetchJobs();
+          data = sortJobsByDate(data);
+        }
+
+        setJobs(data);
+        setCurrentPage(1); // Reset to first page when jobs change
+      } catch (error) {
+        console.error('Error loading jobs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadJobs();
+  }, [searchQuery, activeTab]);
+
+  useEffect(() => {
+    const checkAppliedStatuses = async () => {
+      if (jobs.length > 0) {
+        const appliedSet = new Set<string>();
+        for (const job of jobs) {
+          const isApplied = await checkJobApplied(job._id);
+          if (isApplied) {
+            appliedSet.add(job._id);
+          }
+        }
+        setAppliedJobs(appliedSet);
+      }
+    };
+    
+    checkAppliedStatuses();
+  }, [jobs]);
+
+  const sortJobsByDate = (jobs: Job[]): Job[] => {
+    return [...jobs].sort((a, b) => {
+      if (!a.posted_date) return 1;
+      if (!b.posted_date) return -1;
       
-      <div className="mb-8">
-        <div className="max-w-lg mx-auto mb-6">
-          <Input
-            placeholder="Search jobs by title, company, or location..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
-          />
+      const dateA = new Date(a.posted_date).getTime();
+      const dateB = new Date(b.posted_date).getTime();
+      
+      if (dateB === dateA) {
+        const deadlineA = new Date(a.deadline).getTime();
+        const deadlineB = new Date(b.deadline).getTime();
+        return deadlineA - deadlineB;
+      }
+      
+      return dateB - dateA;
+    });
+  };
+
+  const filterJobsByType = async (type: string): Promise<Job[]> => {
+    const allJobs = await fetchJobs();
+    const filtered = allJobs.filter((job) => 
+      job.job_type.toLowerCase() === type.toLowerCase()
+    );
+    return sortJobsByDate(filtered);
+  };
+
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
+  const normalizeSkills = (skills: string[] | string): string[] => {
+    if (Array.isArray(skills)) {
+      return skills;
+    }
+    if (typeof skills === 'string') {
+      return skills.split(',').map(skill => skill.trim());
+    }
+    return [];
+  };
+
+  const openJobDetails = (job: Job) => {
+    setSelectedJob(job);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedJob(null);
+  };
+
+  const handleApply = async () => {
+    if (!selectedJob) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Token:', token);
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      console.log('Token exists, applying for job');
+      
+      await applyForJob(selectedJob._id, selectedJob.hr_id, token);
+      
+      setAppliedJobs(prev => new Set(prev).add(selectedJob._id));
+      
+      alert(`Successfully applied for ${selectedJob.Job} at ${selectedJob.Org}`);
+      closeModal();
+    } catch (error) {
+      console.error('Application error:', error);
+      alert('Application failed. Please try again later.');
+    }
+  };
+
+  return (
+    <div className={`min-h-screen p-6 ${containerClasses}`}>
+      <div className="max-w-5xl mx-auto">
+        {/* Search and filter section */}
+        <div className="mb-8">
+          <div className="relative mb-4">
+            <input
+              type="text"
+              placeholder="Search for job titles, companies, or skills..."
+              className={`w-full p-4 pl-4 pr-10 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm ${inputClasses}`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <div className="absolute right-3 top-4">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Job type filters */}
+          <div className="flex flex-wrap gap-2">
+            {jobTypes.map((type) => (
+              <button
+                key={type}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${buttonClasses(activeTab === type)}`}
+                onClick={() => setActiveTab(type)}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1).replace('-', ' ')}
+              </button>
+            ))}
+          </div>
         </div>
-        
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">All Jobs</TabsTrigger>
-            <TabsTrigger value="fulltime">Full-time</TabsTrigger>
-            <TabsTrigger value="contract">Contract</TabsTrigger>
-            <TabsTrigger value="remote">Remote</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all" className="animate-slide-in">
-            <div className="space-y-6">
-              {filteredJobs.length > 0 ? (
-                filteredJobs.map((job) => (
-                  <Card key={job.id} className="glass-card card-hover overflow-hidden">
-                    <div className="flex flex-col md:flex-row md:items-center">
-                      <div className="p-6 md:w-24 flex justify-center md:border-r md:border-border">
-                        <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
-                          <img src={job.logo} alt={job.company} className="w-full h-full object-cover" />
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-xl">{job.title}</CardTitle>
-                              <CardDescription className="flex items-center mt-1">
-                                <Building size={14} className="mr-1" />
-                                {job.company}
-                              </CardDescription>
-                            </div>
-                            <Badge>{job.type}</Badge>
-                          </div>
-                        </CardHeader>
-                        
-                        <CardContent className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="flex items-center">
-                              <MapPin size={16} className="mr-2 text-muted-foreground" />
-                              <span>{job.location}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <Clock size={16} className="mr-2 text-muted-foreground" />
-                              <span>{calculateDaysAgo(job.postedDate)}</span>
-                            </div>
-                          </div>
-                          
-                          <p className="text-sm">{job.description}</p>
-                          
-                          <div className="pt-2">
-                            <p className="text-sm font-medium mb-2">Requirements:</p>
-                            <ul className="text-sm list-disc pl-4 space-y-1">
-                              {job.requirements.slice(0, 2).map((req, index) => (
-                                <li key={index}>{req}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </CardContent>
-                        
-                        <CardFooter className="flex justify-between">
-                          <span className="font-medium">{job.salary}</span>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              <BookmarkPlus size={16} className="mr-1" />
-                              Save
-                            </Button>
-                            <Button size="sm">
-                              <ExternalLink size={16} className="mr-1" />
-                              Apply
-                            </Button>
-                          </div>
-                        </CardFooter>
+
+        {/* Job listings */}
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : jobs.length > 0 ? (
+          <div className="space-y-6">
+            {currentJobs.map((job, index) => (
+              <div 
+                key={job._id} 
+                className={`rounded-xl shadow-md overflow-hidden transition-all border ${cardClasses} ${
+                  jobCardColors[index % jobCardColors.length]
+                }`}
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className={`text-xl font-bold mb-1 hover:text-blue-600 transition-colors ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-800'
+                      }`}>
+                        {job.Job}
+                      </h2>
+                      <div className={`flex items-center mb-4 ${
+                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        <Building className="h-4 w-4 mr-1" />
+                        <span className="font-medium mr-3">{job.Org}</span>
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span>{job.Location}</span>
                       </div>
                     </div>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-lg font-medium">No jobs found matching your search criteria.</p>
-                  <p className="text-muted-foreground mt-2">Try adjusting your search terms or filters.</p>
+                    <div className="flex flex-col items-end">
+                      <span className={`${
+                        theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'
+                      } text-xs font-medium px-2.5 py-0.5 rounded-full`}>
+                        {job.job_type}
+                      </span>
+                      <div className={`mt-2 flex items-center ${
+                        theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        <span className="font-semibold">₹{job.Salary}K</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 text-sm">
+                    {/* Experience */}
+                    <div className={`flex items-center ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <Briefcase className="h-4 w-4 mr-2" />
+                      <span><span className="font-medium">Exp:</span> {job.experience} yrs</span>
+                    </div>
+                    
+                    {/* Education */}
+                    <div className={`flex items-center ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      <span><span className="font-medium">Edu:</span> {job.education}</span>
+                    </div>
+                    
+                    {/* Posted Date */}
+                    <div className={`flex items-center ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span><span className="font-medium">Posted:</span> {formatDate(job.posted_date)}</span>
+                    </div>
+                    
+                    {/* Deadline */}
+                    <div className={`flex items-center ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span><span className="font-medium">Deadline:</span> {formatDate(job.deadline)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <div className={`font-medium text-sm mb-2 ${
+                      theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      Skills:
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {normalizeSkills(job.Skills).map((skill, index) => (
+                        <span 
+                          key={index} 
+                          className={`${
+                            theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'
+                          } text-xs font-medium px-2.5 py-1 rounded-md`}
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`text-sm ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    <p className="line-clamp-3">{job.FullDescription}</p>
+                  </div>
+                  
+                  <div className="mt-4 flex justify-end">
+                    <button 
+                      onClick={() => openJobDetails(job)}
+                      className={`inline-flex items-center px-4 py-2 ${
+                        appliedJobs.has(job._id)
+                          ? theme === 'dark' 
+                            ? 'bg-green-800 text-green-200' 
+                            : 'bg-green-100 text-green-800'
+                          : theme === 'dark' 
+                            ? 'bg-blue-700 hover:bg-blue-600 text-white' 
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      } text-sm font-medium rounded-md transition-colors`}
+                    >
+                      {appliedJobs.has(job._id) ? 'Applied' : 'View Details'}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </TabsContent>
-          
-          {/* Other tabs would filter based on job type */}
-          <TabsContent value="fulltime" className="animate-slide-in">
-            <div className="space-y-6">
-              {filteredJobs
-                .filter(job => job.type === 'Full-time')
-                .map((job) => (
-                  /* Same job card component as above */
-                  <Card key={job.id} className="glass-card card-hover overflow-hidden">
-                    {/* Job card content (same as above) */}
-                    <div className="flex flex-col md:flex-row md:items-center">
-                      <div className="p-6 md:w-24 flex justify-center md:border-r md:border-border">
-                        <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
-                          <img src={job.logo} alt={job.company} className="w-full h-full object-cover" />
-                        </div>
+              </div>
+            ))}
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className={`flex justify-center items-center mt-8 space-x-2 ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                <button
+                  onClick={() => paginate(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded-md ${
+                    currentPage === 1
+                      ? theme === 'dark' 
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : theme === 'dark' 
+                        ? 'bg-gray-700 hover:bg-gray-600' 
+                        : 'bg-white hover:bg-gray-100 border border-gray-300'
+                  }`}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                  <button
+                    key={number}
+                    onClick={() => paginate(number)}
+                    className={`px-4 py-2 rounded-md ${
+                      currentPage === number
+                        ? theme === 'dark' 
+                          ? 'bg-blue-700 text-white' 
+                          : 'bg-blue-600 text-white'
+                        : theme === 'dark' 
+                          ? 'bg-gray-700 hover:bg-gray-600' 
+                          : 'bg-white hover:bg-gray-100 border border-gray-300'
+                    }`}
+                  >
+                    {number}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`p-2 rounded-md ${
+                    currentPage === totalPages
+                      ? theme === 'dark' 
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : theme === 'dark' 
+                        ? 'bg-gray-700 hover:bg-gray-600' 
+                        : 'bg-white hover:bg-gray-100 border border-gray-300'
+                  }`}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={`p-8 rounded-lg shadow text-center ${
+            theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+          }`}>
+            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-lg font-medium mb-1">No jobs found</h3>
+            <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+              Try adjusting your search or filter criteria
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Job Details Modal */}
+      {showModal && selectedJob && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className={`w-full max-w-3xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto ${modalClasses}`}>
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold">{selectedJob.Job}</h2>
+                <button 
+                  onClick={closeModal}
+                  className={`p-1 rounded-full ${
+                    theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-200'
+                  }`}
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center mb-2">
+                  <Building className="h-5 w-5 mr-2" />
+                  <span className="text-lg font-medium">{selectedJob.Org}</span>
+                </div>
+                <div className="flex items-center mb-4">
+                  <MapPin className="h-5 w-5 mr-2" />
+                  <span>{selectedJob.Location}</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className={`p-4 rounded-lg ${
+                    theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
+                    <h3 className="font-medium mb-2">Job Details</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Job Type:</span>
+                        <span className="font-medium">{selectedJob.job_type}</span>
                       </div>
-                      
-                      <div className="flex-1">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-xl">{job.title}</CardTitle>
-                              <CardDescription className="flex items-center mt-1">
-                                <Building size={14} className="mr-1" />
-                                {job.company}
-                              </CardDescription>
-                            </div>
-                            <Badge>{job.type}</Badge>
-                          </div>
-                        </CardHeader>
-                        
-                        <CardContent className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="flex items-center">
-                              <MapPin size={16} className="mr-2 text-muted-foreground" />
-                              <span>{job.location}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <Clock size={16} className="mr-2 text-muted-foreground" />
-                              <span>{calculateDaysAgo(job.postedDate)}</span>
-                            </div>
-                          </div>
-                          
-                          <p className="text-sm">{job.description}</p>
-                          
-                          <div className="pt-2">
-                            <p className="text-sm font-medium mb-2">Requirements:</p>
-                            <ul className="text-sm list-disc pl-4 space-y-1">
-                              {job.requirements.slice(0, 2).map((req, index) => (
-                                <li key={index}>{req}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </CardContent>
-                        
-                        <CardFooter className="flex justify-between">
-                          <span className="font-medium">{job.salary}</span>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              <BookmarkPlus size={16} className="mr-1" />
-                              Save
-                            </Button>
-                            <Button size="sm">
-                              <ExternalLink size={16} className="mr-1" />
-                              Apply
-                            </Button>
-                          </div>
-                        </CardFooter>
+                      <div className="flex justify-between">
+                        <span>Salary:</span>
+                        <span className="font-medium">₹{selectedJob.Salary}K</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Experience:</span>
+                        <span className="font-medium">{selectedJob.experience} years</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Education:</span>
+                        <span className="font-medium">{selectedJob.education}</span>
                       </div>
                     </div>
-                  </Card>
-                ))}
+                  </div>
+
+                  <div className={`p-4 rounded-lg ${
+                    theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
+                    <h3 className="font-medium mb-2">Timeline</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Posted Date:</span>
+                        <span className="font-medium">{formatDate(selectedJob.posted_date)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Deadline:</span>
+                        <span className="font-medium">{formatDate(selectedJob.deadline)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="font-medium mb-2">Required Skills</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {normalizeSkills(selectedJob.Skills).map((skill, index) => (
+                      <span 
+                        key={index} 
+                        className={`${
+                          theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'
+                        } px-3 py-1 rounded-md text-sm`}
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="font-medium mb-2">Job Description</h3>
+                  <div className={`p-4 rounded-lg ${
+                    theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
+                    <p className="whitespace-pre-line">{selectedJob.FullDescription}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={closeModal}
+                    className={`px-4 py-2 rounded-md ${
+                      theme === 'dark' 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                    }`}
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={handleApply}
+                    disabled={appliedJobs.has(selectedJob._id)}
+                    className={`px-4 py-2 rounded-md ${
+                      appliedJobs.has(selectedJob._id)
+                        ? theme === 'dark' 
+                          ? 'bg-gray-600 text-gray-300 cursor-not-allowed' 
+                          : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : theme === 'dark' 
+                          ? 'bg-green-700 hover:bg-green-600 text-white' 
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                    }`}
+                  >
+                    {appliedJobs.has(selectedJob._id) ? 'Applied' : 'Apply Now'}
+                  </button>
+                </div>
+              </div>
             </div>
-          </TabsContent>
-          
-          {/* Other tab contents would be similar */}
-          <TabsContent value="contract" className="animate-slide-in">
-            {/* Contract jobs */}
-          </TabsContent>
-          
-          <TabsContent value="remote" className="animate-slide-in">
-            {/* Remote jobs */}
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

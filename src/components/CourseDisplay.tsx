@@ -39,7 +39,7 @@ interface StudentData {
 }
 
 const CourseDisplay: React.FC = () => {
-  const courseId = "680722091c717f2f59d41dac";
+  const courseId = "68136a16fa82ae8da5f51657";
   const [course, setCourse] = useState<Course | null>(null);
   const [expandedChapters, setExpandedChapters] = useState<{ [key: string]: boolean }>({});
   const [completedChapters, setCompletedChapters] = useState<{ [key: string]: boolean }>({});
@@ -149,7 +149,7 @@ const CourseDisplay: React.FC = () => {
   const renderContentItem = (content: ContentItem) => {
     switch (content.type) {
       case "text":
-        return <p className={styles.textContent}>{content.content || "No text available"}</p>;
+        return <p className={styles.textContent}>{typeof content.content === 'string' ? content.content : "No text available"}</p>;
       case "link":
         return (
           <a 
@@ -158,7 +158,7 @@ const CourseDisplay: React.FC = () => {
             rel="noopener noreferrer" 
             className={styles.link}
           >
-            {content.content || content.content.url}
+            {typeof content.content === 'string' ? content.content : content.content.url}
           </a>
         );
       case "youtube":
@@ -185,7 +185,7 @@ const CourseDisplay: React.FC = () => {
           <div className={styles.imageContent}>
             <div className={styles.imagePreview}>
               <iframe
-                src={getDrivePreviewUrl(content.content.url || '')}
+                // src={getDrivePreviewUrl(content.content.url || '')} 
                 title={content.content.filename || "Uploaded image"}
                 className={styles.image}
                 allow="autoplay; fullscreen"
@@ -205,7 +205,7 @@ const CourseDisplay: React.FC = () => {
           <div className={styles.videoContent}>
             <div className={styles.videoPreview}>
               <iframe
-                src={getDrivePreviewUrl(content.content.url || '')}
+                // src={getDrivePreviewUrl(content.content.url || '')}
                 title={content.content.filename || "Uploaded video"}
                 className={styles.videoFrame}
                 allow="autoplay; fullscreen"
@@ -225,7 +225,7 @@ const CourseDisplay: React.FC = () => {
           <div className={styles.pdfContent}>
             <div className={styles.pdfPreview}>
               <iframe
-                src={getDrivePreviewUrl(content.content.url || '')}
+                // src={getDrivePreviewUrl(content.content.url || '')}
                 title={content.content.filename || "PDF Preview"}
                 className={styles.pdfFrame}
               ></iframe>
