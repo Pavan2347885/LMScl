@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/Sidebar';
-import { Dashboard } from '@/components/Dashboard';
+
 import { Courses } from '@/components/Courses';
 import { Tests } from '@/components/Tests';
 import { Assignments } from '@/components/Assignments';
@@ -10,7 +10,7 @@ import { Profile } from '@/components/Profile';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
-import OffCampusJobs from '@/components/OffCampusJobs';
+// import OffCampusJobs from '@/components/OffCampusJobs';
 
 
 const Index = () => {
@@ -58,8 +58,8 @@ const Index = () => {
         return <Assignments />;
       case 'jobs':
         return <Jobs />;
-      case 'offcampusjobs':
-        return <OffCampusJobs />;
+      // case 'offcampusjobs':
+      //   return <OffCampusJobs />;
       case 'interview':
         return <Interview />;
       case 'profile':
