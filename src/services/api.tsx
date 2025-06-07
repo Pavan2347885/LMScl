@@ -1,6 +1,7 @@
 import axios from "axios";
 // https://lmsserver-epac.onrender.com
-export const API_BASE_URL ="http://127.0.0.1:8000/";
+export const API_BASE_URL ="https://lmsserver-epac.onrender.com";
+// export const API_BASE_URL ="http://127.0.0.1:8000/";
 
 
 const api = axios.create({
