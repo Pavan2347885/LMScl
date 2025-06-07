@@ -1,6 +1,6 @@
 import axios from "axios";
-
-export const API_BASE_URL ="https://lmsserver-epac.onrender.com";
+// https://lmsserver-epac.onrender.com
+export const API_BASE_URL ="http://127.0.0.1:8000/";
 
 
 const api = axios.create({
@@ -248,17 +248,64 @@ export const saveCourse = async (courseData) => {
   }
 };
 
-
-export const getCourseById = async (courseId) => {
+export const getCourseById = async (courseId: string) => {
   try {
-    const response = await api.get(`/api/get_student_courses/${courseId}/`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching course:", error);
+    console.log(`Fetching course with ID: ${courseId}`);
+    const response = await api.get(`/api/get_course/${courseId}`);
+    console.log("Raw course data received:", response.data);
+    
+    let courseData = response.data;
+    
+    // If course_data_json exists, merge it with the main course data
+    if (courseData.course_data_json) {
+      try {
+        const jsonData = JSON.parse(courseData.course_data_json);
+        courseData = {
+          ...courseData,
+          ...jsonData,
+          // Preserve the original metadata
+          _id: courseData._id,
+          created_at: courseData.created_at,
+          updated_at: courseData.updated_at,
+          teacher_id: courseData.teacher_id,
+          // Remove the course_data_json field
+          course_data_json: undefined
+        };
+        console.log("Merged course data:", courseData);
+      } catch (jsonError) {
+        console.error("Failed to parse course_data_json:", jsonError);
+        // Continue with unmerged data if parsing fails
+        delete courseData.course_data_json;
+      }
+    }
+    
+    // Ensure chapters and contents exist and are properly structured
+    if (courseData.chapters) {
+      courseData.chapters = courseData.chapters.map((chapter: any) => ({
+        ...chapter,
+        contents: chapter.contents?.map((content: any) => {
+          // Normalize content structure
+          if (content.type === 'youtube' && typeof content.content === 'string') {
+            return {
+              ...content,
+              content: { url: content.content }
+            };
+          }
+          return content;
+        }) || []
+      }));
+    }
+    
+    return courseData;
+  } catch (error: any) {
+    console.error("Detailed error:", {
+      message: error.message,
+      response: error.response?.data,
+      config: error.config
+    });
     throw error.response?.data?.error_message || "Failed to fetch course";
   }
 };
-
 
 export const updateCourse = async (courseId: string, courseData: any): Promise<any> => {
   const response = await api.put(`/api/updatecourses/${courseId}/`, courseData);
@@ -295,6 +342,16 @@ export const getCourses = async () => {
     throw error.response?.data?.error || "Failed to fetch courses";
   }
 };
+
+export  const getReviews = async() => {
+  try {
+    const response = await api.get('/api/get_all_reviews/');
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    throw error.response?.data?.error || "Failed to fetch reviews";
+  }
+}
 export const getBlogs = async () => {
   try {
     const response = await api.get('/api/get_blogs/');
@@ -496,8 +553,14 @@ export const deleteCourse = async (courseId: string): Promise<any> => {
   try {
     const res = await api.delete(`/api/courses/${courseId}/`);
     return res.data;
-  } catch (error) {
-    throw error;
+  } catch (error: any) {
+    console.error('Detailed delete course error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: error.config
+    });
+    throw error.response?.data?.error || error.message || "Failed to delete course";
   }
 };
 

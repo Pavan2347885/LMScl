@@ -1,5 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import logo from "../../assets/img/logo.jpeg";
+
+
+
 import { 
   BookOpen, 
   Briefcase, 
@@ -27,30 +31,33 @@ const Header = ({ activeTab, setActiveTab }) => {
 
   // Define navigation items
   const navItems = [
-    { id: 'explore', label: 'Home', icon: Home },
+    { id: 'explore', label: 'Courses', icon: Home },
+    { id: 'explore1', label: 'Blogs', icon: Home },
     { id: 'opportunities', label: 'Jobs', icon: Briefcase },
     { id: 'teach', label: 'Teach on LMS', icon: BookOpen },
   ];
 
   // Profile dropdown items
   const profileItems = [
-    { id: 'manage-profile', label: 'Manage Profile', icon: Settings },
+   
     { id: 'login-student', label: 'Login as Student', icon: GraduationCap },
     { id: 'login-teacher', label: 'Login as Teacher', icon: UserCog },
+    { id: 'login-hr', label: 'Login as Hr', icon: Shield },
     { id: 'login-admin', label: 'Login as Admin', icon: Shield },
   ];
 
   const handleProfileAction = (id) => {
     setIsProfileOpen(false);
     switch(id) {
-      case 'manage-profile':
-        navigate('/profile');
-        break;
+   
       case 'login-student':
         navigate('/login');
         break;
       case 'login-teacher':
         navigate('/loginteacher');
+        break;
+      case 'login-hr':
+          window.open('https://lms-job.onrender.com/loginhr/', '_blank'); // open in new tab
         break;
       case 'login-admin':
         navigate('/loginadmin');
@@ -73,16 +80,23 @@ const Header = ({ activeTab, setActiveTab }) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo and brand name */}
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="h-8 w-8 rounded-md flex items-center justify-center font-bold bg-blue-600 text-white">
-                TL
-              </div>
-            </div>
-            <span className="ml-3 text-xl font-bold text-gray-800">
-              TechmiyaLMS
-            </span>
-          </div>
+<div
+  className="flex items-center cursor-pointer"
+  onClick={() => window.location.reload()}
+>
+  <div className="flex-shrink-0">
+    <img
+      src={logo}
+      alt="TechmiyaLMS Logo"
+      className="h-8 w-8"
+    />
+  </div>
+  <span className="ml-3 text-xl font-bold text-gray-800">
+    Techmiya Ed-Tech
+  </span>
+</div>
+
+
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
@@ -107,7 +121,7 @@ const Header = ({ activeTab, setActiveTab }) => {
                   onClick={toggleProfile}
                 >
                   <User className="h-4 w-4" />
-                  <span>Profile</span>
+                  <span>Login</span>
                 </button>
                 
                 {/* Profile Dropdown */}

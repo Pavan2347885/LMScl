@@ -2,7 +2,7 @@ import React from 'react';
 
 import '../../assets/css/Body.css';
 
-
+import logo from "../../assets/img/logo.jpeg";
 const Footer = () => {
   return (
     <div class="newfooter">
@@ -10,9 +10,16 @@ const Footer = () => {
       <div className="container content-wrapper">
         <div className="row">
           <div className="col-lg-3 col-md-6">
-            <h5>LMS</h5>
-            <p>Empowering learners worldwide with high-quality educational content and personalized learning experiences.</p>
-          </div>
+  <div className="flex items-center space-x-2 mb-2">
+    <img src={logo} alt="Techmiya Logo" className="h-8 w-8" />
+    <h5 className="text-lg font-semibold">Techmiya Ed-Tech</h5>
+  </div>
+  <p>
+    Transforming learning with cutting-edge technology 
+    Empowering students to build successful careers in tech.
+  </p>
+</div>
+
           <div className="col-lg-3 col-md-6">
             <h5>For Students</h5>
             <ul>
@@ -34,16 +41,15 @@ const Footer = () => {
           <div className="col-lg-3 col-md-6">
             <h5>Contact Us</h5>
             <ul>
-              <li><a href="#">Help Center</a></li>
-              <li><a href="#">Support</a></li>
-              <li><a href="#">Terms of Service</a></li>
-              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">+91 6361987951</a></li>
+              <li><a href="#">info@techmiyasolutions.com</a></li>
+            
             </ul>
           </div>
         </div>
         <div className="row footer-bottom">
           <div className="col-md-6">
-            <p>© 2025 LMS. All rights reserved.</p>
+            <p>© 2025 Techmiya Edtech. All rights reserved.</p>
           </div>
           <div className="col-md-6 text-md-end">
             <div className="social-icons">

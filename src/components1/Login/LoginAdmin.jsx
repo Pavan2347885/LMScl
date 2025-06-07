@@ -215,7 +215,7 @@ const handlePasswordInput = (e) => {
               </label>
               <input
                 type="text"
-                className="login-input" 
+                className="login-input hj" 
                 id="loginUsername"
                 required
                 onChange={handleInputChange}
@@ -229,7 +229,7 @@ const handlePasswordInput = (e) => {
               </label>
               <input 
                 type="password" 
-                className="login-input" 
+                className="login-input hj" 
                 id="loginPassword" 
                 required 
                 maxLength={MAX_PASSWORD_LENGTH}

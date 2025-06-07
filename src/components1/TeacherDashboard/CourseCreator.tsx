@@ -274,29 +274,25 @@ const CourseCreator: React.FC = () => {
   };
 
   // Handle file uploads
-  const handleFileUpload = (
-    event: React.ChangeEvent<HTMLInputElement>,
-    contentId: string,
-    type: string
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+const handleFileUpload = (
+  event: React.ChangeEvent<HTMLInputElement>,
+  contentId: string,
+  type: string
+) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
 
-    console.log(`File uploaded: ${file.name}, Type: ${type}`);
-
-    const preview = URL.createObjectURL(file); // Generate preview URL for all types
-
-    setFileUploads(prev => {
-      const updatedUploads = {
-        ...prev,
-        [contentId]: { file, preview }
-      };
-      console.log("Updated file uploads:", updatedUploads);
-      return updatedUploads;
-    });
-
+  const reader = new FileReader();
+  reader.onload = () => {
+    const preview = URL.createObjectURL(file);
+    setFileUploads(prev => ({
+      ...prev,
+      [contentId]: { file, preview }
+    }));
     updateContent(activeChapterId, contentId, file.name);
   };
+  reader.readAsDataURL(file);
+};
 
 
 
@@ -451,111 +447,97 @@ const CourseCreator: React.FC = () => {
     }
   };
 
-  const handleSaveCourse = async () => {
-    setIsSaving(true);
-    
+const handleSaveCourse = async () => {
+  setIsSaving(true);
 
-    try {
-      // Upload all files to Google Drive
-      const uploadPromises: Promise<{ contentId: string, url: string }>[] = [];
+  try {
+    // Convert all files to base64 and prepare the course data
+    const fileConversionPromises: Promise<{ contentId: string, base64: string, fileName: string }>[] = [];
 
-      for (const [contentId, upload] of Object.entries(fileUploads)) {
-        if (upload.file) {
-          uploadPromises.push(
-            uploadToGoogleDrive(upload.file)
-              .then(url => {
-                console.log(`✅ Successfully uploaded ${upload.file?.name}:`, url); // Log success
-                return { contentId, url };
-              })
-              .catch(error => {
-                console.error(`❌ Failed to upload ${upload.file?.name}:`, error); // Log error
-                return { contentId, url: '' };
-              })
-          );
-        }
-      }
-
-      // Wait for all uploads to complete
-      const uploadResults = await Promise.all(uploadPromises);
-
-      // Print all results after completion
-      console.log("📦 All upload results:", uploadResults);
-
-      const fileUrlMap = uploadResults.reduce((acc, { contentId, url }) => {
-        acc[contentId] = url;
-        return acc;
-      }, {} as Record<string, string>);
-
-      // const teacherId = JSON.parse(localStorage.getItem('user') || '{}').id;
-      // console.log( teacherId);
-
-
-
-
-      const courseData = {
-        title: courseTitle,
-        description: "",
-        teacher_id: JSON.parse(localStorage.getItem('user') || '{}').id,
-        chapters: chapters.map(chapter => ({
-          id: chapter.id,
-          title: chapter.title,
-          template: chapter.template,
-          order: chapters.indexOf(chapter),
-          contents: chapter.contents.map(content => {
-            const contentId = content.id;
-            const uploadedUrl = fileUrlMap[contentId];
-            const fileName = fileUploads[contentId]?.file?.name || '';
-
-            // Base structure
-            const baseContent: any = {
-              id: contentId,
-              type: content.type,
-              order: chapter.contents.indexOf(content),
+    for (const [contentId, upload] of Object.entries(fileUploads)) {
+      if (upload.file) {
+        fileConversionPromises.push(
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                contentId,
+                base64: reader.result as string,
+                fileName: upload.file?.name || ''
+              });
             };
-
-            if (['text', 'link', 'youtube'].includes(content.type)) {
-              baseContent.content = content.content;
-            } else if (content.type === 'quiz') {
-              baseContent.content = {
-                question: quizData[contentId]?.question || '',
-                options: quizData[contentId]?.options || [],
-                correctAnswer: quizData[contentId]?.correctAnswer || 0
-              };
-            } else if (content.type === 'code') {
-              baseContent.content = {
-                code: content.content,
-                language: 'javascript'
-              };
-            } else if (['image', 'video', 'pdf'].includes(content.type) && uploadedUrl) {
-              baseContent.content = {
-                url: uploadedUrl,
-                filename: fileName
-              };
-            } else if (content.type.startsWith('custom-')) {
-              baseContent.content = content.content;
-            }
-
-            return baseContent;
+            reader.readAsDataURL(upload.file);
           })
-        })),
-        custom_content_types: contentTypes.filter(type => type.isCustom)
-      };
-
-
-      // Call API to save course
-      const result = await createCourse(courseData);
-      console.log("🎉 Course saved successfully:", result);
-      alert("Course created successfully!");
-      navigate('/teacherdashbord');
-
-    } catch (error) {
-      console.error("🔥 Error saving course:", error);
-      alert("Failed to save course. Please try again.");
-    } finally {
-      setIsSaving(false);
+        );
+      }
     }
-  };
 
+    // Wait for all file conversions to complete
+    const fileResults = await Promise.all(fileConversionPromises);
+    const fileDataMap = fileResults.reduce((acc, { contentId, base64, fileName }) => {
+      acc[contentId] = { base64, fileName };
+      return acc;
+    }, {} as Record<string, { base64: string, fileName: string }>);
+
+    const courseData = {
+      title: courseTitle,
+      description: "",
+      teacher_id: JSON.parse(localStorage.getItem('user') || '{}').id,
+      chapters: chapters.map(chapter => ({
+        id: chapter.id,
+        title: chapter.title,
+        template: chapter.template,
+        order: chapters.indexOf(chapter),
+        contents: chapter.contents.map(content => {
+          const contentId = content.id;
+          const fileData = fileDataMap[contentId];
+
+          // Base structure
+          const baseContent: any = {
+            id: contentId,
+            type: content.type,
+            order: chapter.contents.indexOf(content),
+          };
+
+          if (['text', 'link', 'youtube'].includes(content.type)) {
+            baseContent.content = content.content;
+          } else if (content.type === 'quiz') {
+            baseContent.content = {
+              question: quizData[contentId]?.question || '',
+              options: quizData[contentId]?.options || [],
+              correctAnswer: quizData[contentId]?.correctAnswer || 0
+            };
+          } else if (content.type === 'code') {
+            baseContent.content = {
+              code: content.content,
+              language: 'javascript'
+            };
+          } else if (['image', 'video', 'pdf'].includes(content.type) && fileData) {
+            baseContent.file = fileData.base64;
+            baseContent.fileName = fileData.fileName;
+          } else if (content.type.startsWith('custom-')) {
+            baseContent.content = content.content;
+          }
+
+          return baseContent;
+        })
+      })),
+      custom_content_types: contentTypes.filter(type => type.isCustom)
+    };
+
+    // Call API to save course
+    const result = await createCourse(courseData);
+    console.log("Course saved successfully:", result);
+    alert("Course created successfully!");
+    navigate(-1);
+
+  } catch (error) {
+    console.error("Error saving course:", error);
+    alert("Failed to save course. Please try again.");
+  } finally {
+    setIsSaving(false);
+  }
+};
   const saveConfig = () => {
     closeConfigModal();
   };
@@ -633,51 +615,47 @@ const CourseCreator: React.FC = () => {
             />
           </div>
         );
-      case 'image':
-        return (
-          <div className="content-item image-content">
-            {fileUploads[item.id]?.preview ? (
-              <div className="image-preview">
-                <img src={fileUploads[item.id].preview || ''} alt="Uploaded" />
-                <button
-                  className="btn-change-image"
-                  onClick={() => {
-                    document.getElementById(`image-upload-${item.id}`)?.click();
-                  }}
-                >
-                  Change Image
-                </button>
-
-                <input
-                  id={`image-upload-${item.id}`}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, item.id, 'image')}
-                  style={{ display: 'none' }}
-                />
-              </div>
-            ) : (
-              <div className="image-upload-area">
-                <span className="upload-icon">🖼️</span>
-                <p>Drag & drop an image here or</p>
-                <button
-                  className="btn-upload"
-                  onClick={() => document.getElementById(`image-upload-${item.id}`)?.click()}
-                >
-                  Upload Image
-                </button>
-                <input
-                  id={`image-upload-${item.id}`}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, item.id, 'image')}
-                  style={{ display: 'none' }}
-                />
-              </div>
-            )}
-          </div>
-        );
-
+   case 'image':
+  return (
+    <div className="content-item image-content">
+      {fileUploads[item.id]?.preview ? (
+        <div className="image-preview">
+          <img src={fileUploads[item.id].preview} alt="Uploaded" />
+          <button
+            className="btn-change-image"
+            onClick={() => document.getElementById(`image-upload-${item.id}`)?.click()}
+          >
+            Change Image
+          </button>
+          <input
+            id={`image-upload-${item.id}`}
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleFileUpload(e, item.id, 'image')}
+            style={{ display: 'none' }}
+          />
+        </div>
+      ) : (
+        <div className="image-upload-area">
+          <span className="upload-icon">🖼️</span>
+          <p>Drag & drop an image here or</p>
+          <button
+            className="btn-upload"
+            onClick={() => document.getElementById(`image-upload-${item.id}`)?.click()}
+          >
+            Upload Image
+          </button>
+          <input
+            id={`image-upload-${item.id}`}
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleFileUpload(e, item.id, 'image')}
+            style={{ display: 'none' }}
+          />
+        </div>
+      )}
+    </div>
+  );
 
 
       case 'video':

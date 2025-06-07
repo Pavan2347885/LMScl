@@ -539,7 +539,7 @@ const BlogCreator: React.FC = () => {
       const result = await createBlog(courseData);
       console.log("🎉 Course saved successfully:", result);
       alert("Blog added successfully!");
-      navigate('/teacherdashbord');
+      navigate(-1);
 
     } catch (error) {
       console.error("🔥 Error saving course:", error);

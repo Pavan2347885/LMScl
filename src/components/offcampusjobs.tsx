@@ -4,27 +4,34 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select } from '@/components/ui/select'; // Update as per your actual Select component
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const JOBS_PER_PAGE = 6;
 
-  export const OffCampusJobs = () => {
+export const OffCampusJobs = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
-    country: '',
+    country: 'all',
     remote: false,
     search: ''
   });
-  const [message, setMessage] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   const loadJobs = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchJobs1(filters);
+      // Convert filters to API format
+      const apiFilters = {
+        country: filters.country === 'all' ? '' : filters.country,
+        remote: filters.remote,
+        search: filters.search
+      };
+      const data = await fetchJobs1(apiFilters);
       setJobs(data);
       setCurrentPage(1); // Reset to first page on filter change
     } catch (err) {
@@ -34,9 +41,10 @@ const JOBS_PER_PAGE = 6;
     }
   };
 
+  // Load jobs when component mounts and when filters change
   useEffect(() => {
     loadJobs();
-  }, [filters]);
+  }, []); // Empty dependency array to run only on mount
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -44,6 +52,18 @@ const JOBS_PER_PAGE = 6;
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleSelectChange = (name, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Apply filters when the Apply button is clicked
+  const handleApplyFilters = () => {
+    loadJobs();
   };
 
   // Pagination Logic
@@ -59,6 +79,62 @@ const JOBS_PER_PAGE = 6;
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Filters Section */}
+      <div className="mb-8 p-6 bg-white rounded-lg shadow">
+        <h2 className="text-xl font-bold mb-4">Filters</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <Label htmlFor="search">Search</Label>
+            <Input
+              id="search"
+              name="search"
+              placeholder="Job title or company"
+              value={filters.search}
+              onChange={handleFilterChange}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="country">Country</Label>
+            <Select 
+              value={filters.country} 
+              onValueChange={(value) => handleSelectChange('country', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Countries</SelectItem>
+                <SelectItem value="US">United States</SelectItem>
+                <SelectItem value="IN">India</SelectItem>
+                <SelectItem value="UK">United Kingdom</SelectItem>
+                <SelectItem value="CA">Canada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex items-end">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remote"
+                name="remote"
+                checked={filters.remote}
+                onCheckedChange={(checked) => 
+                  setFilters(prev => ({ ...prev, remote: checked }))
+                }
+              />
+              <Label htmlFor="remote">Remote Only</Label>
+            </div>
+          </div>
+          
+          <div className="flex items-end">
+            <Button onClick={handleApplyFilters} className="w-full">
+              Apply Filters
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
           {error}
@@ -127,9 +203,9 @@ const JOBS_PER_PAGE = 6;
         ))}
       </div>
 
-      {/* Pagination Controls */}
+      {/* Simplified Pagination Controls - Only Previous, Current, Next */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-8">
+        <div className="flex justify-center items-center mt-8 space-x-2">
           <Button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -137,15 +213,11 @@ const JOBS_PER_PAGE = 6;
           >
             Previous
           </Button>
-          {[...Array(totalPages)].map((_, idx) => (
-            <Button
-              key={idx + 1}
-              onClick={() => handlePageChange(idx + 1)}
-              variant={currentPage === idx + 1 ? 'default' : 'outline'}
-            >
-              {idx + 1}
-            </Button>
-          ))}
+          
+          <Button variant="default" className="pointer-events-none">
+            {currentPage}
+          </Button>
+          
           <Button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
@@ -158,5 +230,3 @@ const JOBS_PER_PAGE = 6;
     </div>
   );
 };
-
-

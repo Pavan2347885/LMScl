@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Navbar } from '@/components/Sidebar';
 
 import { Courses } from '@/components/Courses';
+
+import { Blogs } from '@/components/Blogs';
+
+import BlogCreator from '@/components/BlogCreater';
 import { Tests } from '@/components/Tests';
 import { Assignments } from '@/components/Assignments';
 import { Jobs } from '@/components/Jobs';
@@ -53,6 +57,10 @@ const Index = () => {
       //   return <Dashboard />;
       case 'courses':
         return <Courses />;
+      case 'Blogs':
+        return <Blogs />;
+      case 'BlogCreater':
+        return <BlogCreater />;
       case 'tests':
         return <Tests />;
       case 'assignments':
@@ -77,7 +85,7 @@ const Index = () => {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="min-h-screen flex flex-col bg-background  ">
         <Navbar activeSection={activeSection} onSectionChange={setActiveSection} />
         <main className="flex-1 pt-16 min-h-screen">
           {renderSection()}

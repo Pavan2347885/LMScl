@@ -49,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection, onSectionChange }
   const navItems = [
     { id: 'courses', label: 'Courses', icon: BookOpen },
     { id: 'tests', label: 'Tests', icon: FileText },
+    { id: 'Blogs', label: 'Blogs', icon: FileText },
   ];
 
   // Jobs dropdown items

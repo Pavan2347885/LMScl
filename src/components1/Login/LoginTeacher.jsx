@@ -211,7 +211,7 @@ const LoginSignup = ({ isSignup, setToken }) => {
                 </label>
                 <input
                   type="text"
-                  className="login-input"
+                  className="login-input hj"
                   id="loginUsername"
                   required
                   defaultValue={rememberMe ? localStorage.getItem('rememberedUsername') || '' : ''}
@@ -223,7 +223,7 @@ const LoginSignup = ({ isSignup, setToken }) => {
                 </label>
                 <input
                   type="password"
-                  className="login-input"
+                  className="login-input hj"
                   id="loginPassword"
                   required
                   maxLength={MAX_PASSWORD_LENGTH}
@@ -286,7 +286,7 @@ const LoginSignup = ({ isSignup, setToken }) => {
                 </label>
                 <input
                   type="text"
-                  className={`login-input ${validationErrors.username ? "invalid-input" : ""}`}
+                  className={`login-input hj ${validationErrors.username ? "invalid-input" : ""}`}
                   id="signupUsername"
                   required
                   onChange={handleInputChange}
@@ -299,19 +299,19 @@ const LoginSignup = ({ isSignup, setToken }) => {
                 <label htmlFor="signupFirstName" className="login-label">
                   First Name
                 </label>
-                <input type="text" className="login-input" id="signupFirstName" required />
+                <input type="text" className="login-input hj" id="signupFirstName" required />
               </div>
               <div className="login-input-group">
                 <label htmlFor="signupLastName" className="login-label">
                   Last Name
                 </label>
-                <input type="text" className="login-input" id="signupLastName" />
+                <input type="text" className="login-input hj" id="signupLastName" />
               </div>
               <div className="login-input-group">
                 <label htmlFor="signupEmail" className="login-label">
                   Email
                 </label>
-                <input type="email" className="login-input" id="signupEmail" required />
+                <input type="email" className="login-input hj" id="signupEmail" required />
               </div>
               <div className="login-input-group">
                 <label htmlFor="signupPassword" className="login-label">
@@ -319,7 +319,7 @@ const LoginSignup = ({ isSignup, setToken }) => {
                 </label>
                 <input
                   type="password"
-                  className={`login-input ${validationErrors.password ? "invalid-input" : ""}`}
+                  className={`login-input hj ${validationErrors.password ? "invalid-input" : ""}`}
                   id="signupPassword"
                   required
                   maxLength={MAX_PASSWORD_LENGTH}
@@ -340,7 +340,7 @@ const LoginSignup = ({ isSignup, setToken }) => {
                 </label>
                 <input
                   type="password"
-                  className={`login-input ${validationErrors.confirmPassword ? "invalid-input" : ""}`}
+                  className={`login-input hj ${validationErrors.confirmPassword ? "invalid-input" : ""}`}
                   id="signupConfirmPassword"
                   required
                   maxLength={MAX_PASSWORD_LENGTH}

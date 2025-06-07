@@ -94,8 +94,9 @@ const App = () => {
               <Route path="/create_blog" element={<PrivateRoute token={token} />}>
                 <Route index element={<BlogCreator />} />
               </Route>
-              <Route path="/studentcourse" element={<CourseDisplay />} />
-             
+              <Route path="/studentcourse/:courseId" element={<PrivateRoute token={token} />}>
+    <Route index element={<CourseDisplay />} />
+  </Route>
               <Route path="/test/results/:id" element={<TestReview />} />
               <Route path="/test" element={<PrivateRoute token={token} />}>
                 <Route index element={<TestScreen />} />
